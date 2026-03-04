@@ -1,0 +1,203 @@
+import React from 'react';
+import { ArrowLeft, FileText, AlertOctagon, Info, Code, MapPin, Search, ShieldCheck } from 'lucide-react';
+import './ThreatDetails.css';
+
+const ThreatDetails = ({ threat, onBack }) => {
+  // Use mock data if no threat passed
+  const displayThreat = threat || {
+    id: "TR-9942-X",
+    target: "paypal-security-update-verify.com/login",
+    brand: "PayPal",
+    severity: "critical",
+    score: 94,
+    ip: "192.168.1.104",
+    location: "RU",
+    urlAnalysis: [
+      { part: "Protocol", value: "https://", state: "safe", note: "" },
+      { part: "Subdomain", value: "paypal-security-update", state: "danger", note: "Brand impersonation" },
+      { part: "Domain", value: "verify.com", state: "warning", note: "Deceptive root" },
+      { part: "Path", value: "/login", state: "default", note: "" }
+    ],
+    aiReasoning: [
+      { score: "98%", state: "danger", title: "Visual Similarity", desc: "CSS and layout matches PayPal login identical to 98.4% precision." },
+      { score: "92%", state: "danger", title: "Heuristic Lexical Analysis", desc: "URL contains suspicious brand words 'security', 'update', 'verify'." },
+      { score: "85%", state: "warning", title: "Form Action Anomalies", desc: "Login form submits POST to an obfuscated external PHP script." }
+    ]
+  };
+
+  const isCritical = displayThreat.severity === 'critical';
+  const isHigh = displayThreat.severity === 'high';
+
+  const getScoreColor = () => {
+    if (displayThreat.score > 85) return 'danger';
+    if (displayThreat.score > 60) return 'warning';
+    return 'accent';
+  };
+
+  return (
+    <div className="threat-layout">
+      {/* Header */}
+      <header className="threat-header glass-panel">
+        <div className="threat-title">
+          <button className="back-btn" onClick={onBack}>
+            <ArrowLeft size={20} />
+          </button>
+          <div className="title-info">
+            <h2>Threat Forensic Report</h2>
+            <span className="threat-id">ID: #{displayThreat.id}</span>
+          </div>
+        </div>
+        <div className="threat-actions">
+          <button className="btn-outline" onClick={() => alert("Generating Forensic PDF Report...")}>
+            <FileText size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+            Export PDF
+          </button>
+          <button className="btn-danger" onClick={() => alert(`Domain ${displayThreat.target} Quarantined successfully.`)}>
+            <AlertOctagon size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+            Quarantine Domain
+          </button>
+        </div>
+      </header>
+
+      {/* Main Grid */}
+      <div className="threat-grid">
+
+        {/* Left Column */}
+        <div className="threat-col-left">
+
+          {/* Overview Card */}
+          <div className="glass-panel threat-card overview-card">
+            <div className="overview-top">
+              <div className="gauge-container">
+                <svg viewBox="0 0 100 50" className={`gauge-svg ${getScoreColor()}`}>
+                  <path className="gauge-bg" d="M 10 50 A 40 40 0 0 1 90 50" />
+                  <path className="gauge-fill" d="M 10 50 A 40 40 0 0 1 90 50"
+                    strokeDasharray="125"
+                    strokeDashoffset={125 - (125 * (displayThreat.score / 100))} />
+                </svg>
+                <div className="gauge-value">
+                  <span className={`score ${getScoreColor()}-text`}>{displayThreat.score}</span>
+                  <span className={`label ${getScoreColor()}-text`}>
+                    {displayThreat.severity.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="classification-details">
+                <div className="badge-row">
+                  <span className={`class-badge ${getScoreColor()}`}>
+                    {displayThreat.type || 'Phishing Attack'}
+                  </span>
+                  {isCritical && <span className="class-badge danger">Zero-Day Profile</span>}
+                </div>
+                <h3>{displayThreat.target}</h3>
+                <p className="target-brand">Targeted Brand: <strong>{displayThreat.brand}</strong></p>
+                <div className="ip-info-flex">
+                  <MapPin size={14} />
+                  <span>IP: {displayThreat.ip} • Hosted in: {displayThreat.location}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="timeline-container">
+              <div className="timeline-header">Detection Timeline</div>
+              <div className="timeline">
+                <div className="timeline-item">
+                  <div className="t-dot t-danger"></div>
+                  <div className="t-content">
+                    <span className="t-time">T-2:00:00</span>
+                    <span className="t-desc">Domain registered (Age: &lt; 2 hrs)</span>
+                  </div>
+                </div>
+                <div className="timeline-item">
+                  <div className="t-dot t-warning"></div>
+                  <div className="t-content">
+                    <span className="t-time">T-0:30:00</span>
+                    <span className="t-desc">SSL certificate issued</span>
+                  </div>
+                </div>
+                <div className="timeline-item">
+                  <div className="t-dot t-danger"></div>
+                  <div className="t-content">
+                    <span className="t-time">T-0:00:01</span>
+                    <span className="t-desc">First user click detected</span>
+                  </div>
+                </div>
+                <div className="timeline-item active">
+                  <div className="t-dot t-accent"></div>
+                  <div className="t-content">
+                    <span className="t-time">NOW</span>
+                    <span className="t-desc">Sentinel AI blocked access</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* AI Reasoning Panel */}
+          <div className="glass-panel threat-card">
+            <div className="card-header">
+              <ShieldCheck className="icon-cyan" size={20} />
+              <h3>AI Analysis Engine</h3>
+            </div>
+
+            <div className="reasoning-grid">
+              {displayThreat.aiReasoning.map((reason, i) => (
+                <div key={i} className={`reason-item glass-panel-light highlight-${reason.state}`}>
+                  <div className="r-score">{reason.score}</div>
+                  <div className="r-detail">
+                    <h4>{reason.title}</h4>
+                    <p>{reason.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="threat-col-right">
+          {/* URL Breakdown */}
+          <div className="glass-panel threat-card">
+            <div className="card-header">
+              <Search size={20} />
+              <h3>URL Forensic Breakdown</h3>
+            </div>
+            <div className="url-breakdown">
+              {displayThreat.urlAnalysis.map((part, i) => (
+                <div key={i} className={`url-part ${part.state}`}>
+                  <span className="part-label">{part.part}</span>
+                  <span className="part-value">{part.value}</span>
+                  {part.note && <span className="part-note">{part.note}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Event Logs */}
+          <div className="glass-panel threat-card code-panel">
+            <div className="card-header">
+              <Code size={20} />
+              <h3>Raw System Logs</h3>
+            </div>
+            <pre className="log-output">
+              {`[SYS] Initiating deep scan for req ID #${displayThreat.id}
+[NET] DNS resolution: ${displayThreat.ip} (AS1234)
+[SSL] Cert issuer: Let's Encrypt Authority X3
+[SSL] Valid from: ${new Date().toISOString()} (WARN: NEW)
+[DOM] Whois lookup: hidden via privacy guard
+[AI_CORE] Loading visual model v4.2...
+[AI_CORE] Image hash match: brand_score (98.4%)
+[HEUR] DOM parser found obfuscated fields
+[ACT] Policy 'Block High Risk' applied
+[RES] Connection terminated. Event logged.`}
+            </pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+export default ThreatDetails;

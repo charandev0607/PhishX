@@ -1,0 +1,188 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Demo Controls for switching views */
+.demo-controls {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(10, 10, 15, 0.85);
+  border: 1px solid var(--accent-cyan);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
+  max-width: 320px;
+}
+
+.demo-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.demo-header svg {
+  width: 24px;
+  height: 24px;
+}
+
+.demo-header h1 {
+  font-size: 1.1rem;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.demo-controls p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.view-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tab-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  background: rgba(0, 243, 255, 0.15);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+/* View Container */
+.view-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+/* Extension Showcase Specific Styles */
+.extension-showcase {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.browser-mockup {
+  width: 100%;
+  max-width: 1200px;
+  height: 800px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.browser-bar {
+  height: 40px;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dots {
+  display: flex;
+  gap: 6px;
+}
+
+.dots span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #333;
+}
+
+.dots span:nth-child(1) {
+  background: #ff5f56;
+}
+
+.dots span:nth-child(2) {
+  background: #ffbd2e;
+}
+
+.dots span:nth-child(3) {
+  background: #27c93f;
+}
+
+.address-bar {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 16px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.danger-url {
+  color: #ff80a6;
+  border: 1px solid rgba(255, 0, 85, 0.3);
+  background: rgba(255, 0, 85, 0.05);
+}
+
+.browser-content {
+  flex: 1;
+  background: url('https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=2070&auto=format&fit=crop') center/cover;
+  position: relative;
+}
+
+.browser-content::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 10, 15, 0.8);
+  backdrop-filter: blur(4px);
+}
+
+.extension-wrapper {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+  animation: slideIn 0.4s ease-out forwards;
+  opacity: 0;
+  transform: translateX(50px);
+}
+
+@keyframes slideIn {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
