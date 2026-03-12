@@ -250,3 +250,125 @@
 .danger-text:hover {
     color: var(--status-danger);
 }
+/* Scan Flow Styles */
+.scan-flow-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 10px;
+    min-height: 250px;
+    gap: 16px;
+}
+
+.scan-icon-wrapper {
+    background: rgba(0, 243, 255, 0.1);
+    padding: 20px;
+    border-radius: 50%;
+    margin-bottom: 10px;
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+}
+
+.scan-text h3 {
+    margin: 0;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.scan-text p {
+    margin: 8px 0 0 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.scan-btn {
+    margin-top: 10px;
+    width: 80%;
+}
+
+.active-scan {
+    padding: 60px 10px;
+}
+
+.scanning-animation {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scanner-target {
+    color: var(--accent-cyan);
+    animation: pulse 1.5s infinite;
+}
+
+.scanning-animation::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 15px var(--accent-cyan);
+    top: 0;
+    left: 0;
+    animation: scanVertical 1.5s linear infinite alternate;
+}
+
+@keyframes scanVertical {
+    0% { top: 0; }
+    100% { top: 100%; }
+}
+
+.scan-status-text {
+    font-size: 1rem;
+    color: var(--accent-cyan);
+    margin: 0 0 20px 0;
+    min-height: 24px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-filled {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
+    width: 0%;
+    transition: width 0.5s ease-in-out;
+}
+
+.state-scanning { width: 25%; }
+.state-analyzing { width: 50%; }
+.state-detecting { width: 75%; }
+.state-storing { width: 100%; }
+
+.fade-in {
+    animation: fadeIn 0.4s ease forwards;
+}
+
+.delay-1 {
+    animation-delay: 0.2s;
+    opacity: 0;
+}
+
+.delay-2 {
+    animation-delay: 0.4s;
+    opacity: 0;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.is-scanning::after {
+    animation: scanline 1.5s linear infinite;
+}

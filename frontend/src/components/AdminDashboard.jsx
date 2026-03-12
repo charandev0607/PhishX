@@ -4,7 +4,7 @@ import {
     PieChart, Pie, Cell
 } from 'recharts';
 import {
-    ShieldAlert, ShieldCheck, Activity, Users, Settings, Bell, Search, TrendingUp, AlertTriangle
+    ShieldAlert, ShieldCheck, Activity, Users, Settings, Bell, Search, TrendingUp, AlertTriangle, FileText, DownloadCloud
 } from 'lucide-react';
 import { mockThreatFeed, threatTrendData, riskDistributionData, categoryData } from '../data/mockData';
 import './AdminDashboard.css';
@@ -40,11 +40,14 @@ const AdminDashboard = ({ onSelectThreat }) => {
 
                 <nav className="nav-menu">
                     <button className={`nav-item ${activeNav === 'overview' ? 'active' : ''}`} onClick={() => setActiveNav('overview')}>
-                        <Activity size={20} /> Overview
+                        <Activity size={20} /> View Real-Time Dashboard
                     </button>
                     <button className={`nav-item ${activeNav === 'threats' ? 'active' : ''}`} onClick={() => setActiveNav('threats')}>
-                        <ShieldAlert size={20} /> Live Threats
+                        <ShieldAlert size={20} /> Monitor Threat Feed
                         <span className="nav-badge pulse-badge">{mockThreatFeed.filter(t => t.status === "Blocked").length}</span>
+                    </button>
+                    <button className={`nav-item ${activeNav === 'reports' ? 'active' : ''}`} onClick={() => setActiveNav('reports')}>
+                        <FileText size={20} /> View Incident Reports
                     </button>
                     <button className={`nav-item ${activeNav === 'analytics' ? 'active' : ''}`} onClick={() => setActiveNav('analytics')}>
                         <TrendingUp size={20} /> Analytics
@@ -129,9 +132,11 @@ const AdminDashboard = ({ onSelectThreat }) => {
 
                 {/* Complex Content Area */}
                 <div className="dashboard-content">
-                    <div className="charts-column">
-                        {/* Main Trend Chart */}
-                        <div className="charts-section glass-panel">
+                    {activeNav === 'overview' && (
+                        <>
+                        <div className="charts-column fade-in">
+                            {/* Main Trend Chart */}
+                            <div className="charts-section glass-panel">
                             <div className="section-header">
                                 <h3>Threat Volume Trend</h3>
                                 <div className="filters">
@@ -264,6 +269,50 @@ const AdminDashboard = ({ onSelectThreat }) => {
                             ))}
                         </div>
                     </div>
+                        </>
+                    )}
+                    
+                    {/* Add View for Incident Reports */}
+                    {activeNav === 'reports' && (
+                        <div className="reports-view fade-in glass-panel" style={{ width: '100%', padding: '30px' }}>
+                            <div className="section-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between' }}>
+                                <h3>Incident Reports</h3>
+                                <button className="btn-primary" onClick={() => alert("Generating full Incident Report PDF...")}>
+                                    <DownloadCloud size={18} style={{marginRight: '8px'}} /> Generate Reports
+                                </button>
+                            </div>
+                            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', color: 'var(--text-secondary)' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
+                                        <th style={{ padding: '12px 8px' }}>Threat ID</th>
+                                        <th style={{ padding: '12px 8px' }}>Time</th>
+                                        <th style={{ padding: '12px 8px' }}>Type</th>
+                                        <th style={{ padding: '12px 8px' }}>Target</th>
+                                        <th style={{ padding: '12px 8px' }}>Severity</th>
+                                        <th style={{ padding: '12px 8px' }}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {mockThreatFeed.map(threat => (
+                                        <tr key={threat.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }} onClick={() => onSelectThreat && onSelectThreat(threat)}>
+                                            <td style={{ padding: '12px 8px', color: 'var(--accent-cyan)' }}>{threat.id}</td>
+                                            <td style={{ padding: '12px 8px' }}>{threat.time}</td>
+                                            <td style={{ padding: '12px 8px' }}>{threat.type}</td>
+                                            <td style={{ padding: '12px 8px' }}>{threat.target}</td>
+                                            <td style={{ padding: '12px 8px', color: threat.severity === 'critical' ? 'var(--status-danger)' : 'var(--status-warning)' }}>
+                                                {threat.severity.toUpperCase()}
+                                            </td>
+                                            <td style={{ padding: '12px 8px' }}>
+                                                <button className="btn-text" style={{ padding: 0 }} onClick={(e) => { e.stopPropagation(); alert(`Downloading report for ${threat.id}`); }}>
+                                                    <FileText size={16} /> Export
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </main>
         </div>

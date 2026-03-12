@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Monitor, LayoutDashboard, Search } from 'lucide-react';
+import { Monitor, LayoutDashboard, Search, Cpu } from 'lucide-react';
 import './App.css';
 
 // Components
 import BrowserExtension from './components/BrowserExtension';
 import AdminDashboard from './components/AdminDashboard';
 import ThreatDetails from './components/ThreatDetails';
+import MLEngineerDashboard from './components/MLEngineerDashboard';
 
 function App() {
   const [activeTab, setActiveTab] = useState('extension');
@@ -29,7 +30,7 @@ function App() {
           <Monitor color="var(--accent-cyan)" size={24} />
           <h1>Sentinel AI Demo</h1>
         </div>
-        <p>Real-Time AI/ML Phishing Detection System</p>
+        <p>Real-Time AI/ML-Based Phishing Detection and Prevention System</p>
         <div className="view-toggles">
           <button
             className={`tab-btn ${activeTab === 'extension' ? 'active' : ''}`}
@@ -41,7 +42,13 @@ function App() {
             className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => setActiveTab('dashboard')}
           >
-            Admin Dashboard
+            <LayoutDashboard size={16} /> Admin Dashboard
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'ml-engineer' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ml-engineer')}
+          >
+            <Cpu size={16} /> ML Engineer Dashboard
           </button>
           <button
             className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`}
@@ -70,20 +77,19 @@ function App() {
               </div>
             </div>
           </div>
-        )
-        }
+        )}
 
-        {
-          activeTab === 'dashboard' && (
-            <AdminDashboard onSelectThreat={handleSelectThreat} />
-          )
-        }
+        {activeTab === 'dashboard' && (
+          <AdminDashboard onSelectThreat={handleSelectThreat} />
+        )}
 
-        {
-          activeTab === 'details' && (
-            <ThreatDetails threat={selectedThreat} onBack={handleBackToDashboard} />
-          )
-        }
+        {activeTab === 'ml-engineer' && (
+          <MLEngineerDashboard />
+        )}
+
+        {activeTab === 'details' && (
+          <ThreatDetails threat={selectedThreat} onBack={handleBackToDashboard} />
+        )}
       </div >
     </div >
   );
