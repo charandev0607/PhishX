@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Monitor, LayoutDashboard, Search, Cpu } from 'lucide-react';
+import { Monitor, LayoutDashboard, Search, Cpu, LogOut } from 'lucide-react';
 import './App.css';
 
 // Components
@@ -7,30 +7,58 @@ import BrowserExtension from './components/BrowserExtension';
 import AdminDashboard from './components/AdminDashboard';
 import ThreatDetails from './components/ThreatDetails';
 import MLEngineerDashboard from './components/MLEngineerDashboard';
+import Auth from './components/Auth';
 
 function App() {
+  const [user, setUser] = useState(null); // null means not logged in
   const [activeTab, setActiveTab] = useState('extension');
   const [selectedThreat, setSelectedThreat] = useState(null);
 
+  const handleLogin = (userData) => {
+    setUser(userData);
+    // If admin logs in, show admin dashboard default. If user, show extension.
+    setActiveTab(userData.role === 'admin' ? 'dashboard' : 'extension');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setActiveTab('extension');
+  };
+
   const handleSelectThreat = (threat) => {
     setSelectedThreat(threat);
-    setActiveTab('details'); // Switch to details view when a threat is selected
+    setActiveTab('details');
   };
 
   const handleBackToDashboard = () => {
     setSelectedThreat(null);
-    setActiveTab('dashboard');
+    setActiveTab(user?.role === 'admin' ? 'dashboard' : 'extension');
   };
+
+  // If no user is logged in, show the Auth screen
+  if (!user) {
+    return <Auth onLogin={handleLogin} />;
+  }
+
+  const isAdmin = user.role === 'admin';
 
   return (
     <div className="app-container">
-      {/* Demo Controls - Not part of actual UI, just for switching views */}
+      {/* Controls Container */}
       <div className="demo-controls glass-panel">
         <div className="demo-header">
           <Monitor color="var(--accent-cyan)" size={24} />
-          <h1>Sentinel AI Demo</h1>
+          <h1>Sentinel AI</h1>
         </div>
-        <p>Real-Time AI/ML-Based Phishing Detection and Prevention System</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', marginBottom: '16px' }}>
+          <p style={{ color: 'var(--accent-cyan)', fontWeight: 500 }}>
+            Logged in as: {isAdmin ? 'Security Admin' : 'End User'}
+          </p>
+          <button onClick={handleLogout} className="btn-text" title="Logout">
+            <LogOut size={16} />
+          </button>
+        </div>
+        
         <div className="view-toggles">
           <button
             className={`tab-btn ${activeTab === 'extension' ? 'active' : ''}`}
@@ -38,29 +66,36 @@ function App() {
           >
             Browser Extension UI
           </button>
-          <button
-            className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
-          >
-            <LayoutDashboard size={16} /> Admin Dashboard
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'ml-engineer' ? 'active' : ''}`}
-            onClick={() => setActiveTab('ml-engineer')}
-          >
-            <Cpu size={16} /> ML Engineer Dashboard
-          </button>
+          
+          {/* Admin / ML Views strictly available to 'admin' role */}
+          {isAdmin && (
+            <>
+              <button
+                className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+                onClick={() => setActiveTab('dashboard')}
+              >
+                <LayoutDashboard size={16} /> Admin Dashboard
+              </button>
+              <button
+                className={`tab-btn ${activeTab === 'ml-engineer' ? 'active' : ''}`}
+                onClick={() => setActiveTab('ml-engineer')}
+              >
+                <Cpu size={16} /> ML Engineer Dashboard
+              </button>
+            </>
+          )}
+
           <button
             className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`}
             onClick={() => setActiveTab('details')}
           >
             Threat Details View
           </button>
-        </div >
-      </div >
+        </div>
+      </div>
 
       {/* Main View Area */}
-      < div className="view-container" >
+      <div className="view-container">
         {activeTab === 'extension' && (
           <div className="extension-showcase">
             <div className="browser-mockup glass-panel">
@@ -79,19 +114,19 @@ function App() {
           </div>
         )}
 
-        {activeTab === 'dashboard' && (
+        {activeTab === 'dashboard' && isAdmin && (
           <AdminDashboard onSelectThreat={handleSelectThreat} />
         )}
 
-        {activeTab === 'ml-engineer' && (
+        {activeTab === 'ml-engineer' && isAdmin && (
           <MLEngineerDashboard />
         )}
 
         {activeTab === 'details' && (
           <ThreatDetails threat={selectedThreat} onBack={handleBackToDashboard} />
         )}
-      </div >
-    </div >
+      </div>
+    </div>
   );
 }
 
