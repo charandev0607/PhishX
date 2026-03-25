@@ -1,0 +1,24 @@
+{
+  "name": "phishx",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
+    "build": "npm run build -w client",
+    "lint": "npm run lint -w client",
+    "preview": "npm run preview -w client",
+    "client:dev": "npm run dev -w client",
+    "client:build": "npm run build -w client",
+    "client:lint": "npm run lint -w client",
+    "client:preview": "npm run preview -w client",
+    "server:dev": "npm run dev -w server",
+    "server:start": "npm run start -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

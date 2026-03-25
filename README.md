@@ -15,44 +15,64 @@ PhishX is a comprehensive security tool designed to detect and block phishing at
 
 ## 🏗️ Project Architecture
 
-The application is built using a modern decoupled architecture:
+The application is organized as a monorepo with separate frontend and backend apps:
 
 ### 🖥️ Frontend (React + Vite)
-Located in the `/frontend` directory, it handles the interactive UI.
+Located in the `/client` directory, it handles the interactive UI.
 - Displays the **Browser Extension simulation** workflow.
 - Features the **Admin Dashboard** for security oversight.
 - Features the **ML Engineer Dashboard** for managing AI model training states.
 
-### ⚙️ Backend (Python)
-Located in the `/backend` directory, it is structured to support a robust API (e.g., FastAPI, Flask) and ML serving pipeline.
-- `models/`: Contains Pydantic schemas reflecting UML entities (`IncidentReport`, `ModelPerformanceMetrics`, etc.).
-- `routes/`: Targeted for API endpoints.
-- `controllers/`: For request handling and business logic execution.
-- `services/`: Where ML model invocation, threat intel aggregation, and external API calls reside.
-- `utils/`: Reusable helper functions (e.g., logging, security validators).
-- `config/`: Application environment settings and database configurations.
+### ⚙️ Backend (Node.js + Express)
+Located in the `/server` directory, it is an Express API for threat ingestion and analytics endpoints.
+- `src/models/`: MongoDB models and schema-driven entities (users, incidents, audit logs, sessions).
+- `src/routes/`: Versioned API routes.
+- `src/controllers/`: Request handlers for auth, analysis, incidents.
+- `src/services/`: Detection logic, scoring, retention, session and realtime support.
+- `src/utils/`: Reusable helpers (feature extraction, domain similarity, SSL checks, logging).
+- `src/config/`: Database and Redis configuration.
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v16+)
-- Python (3.9+)
+- Node.js (v20.19+)
+
+### Install Monorepo Dependencies
+```bash
+npm install
+```
 
 ### Running the Frontend UI
 ```bash
-cd frontend
-npm install
 npm run dev
 ```
 
-### Backend Setup
-The backend currently contains architectural scaffolding and schema definitions. To view the UML schemas:
+Other root-level scripts:
 ```bash
-cd backend
-python -m pip install pydantic
-# Review the schemas located in backend/models/schemas.py
+npm run build
+npm run lint
+npm run preview
+```
+
+### Backend Setup
+Run the Express backend:
+```bash
+npm run server:dev
+```
+
+Useful API endpoints:
+```bash
+POST /api/v1/auth/login
+POST /api/v1/auth/refresh
+POST /api/v1/auth/logout
+POST /api/v1/url-analyze
+POST /api/v1/email-analyze
+GET /api/v1/incidents
+GET /api/v1/events/poll
+GET /api/v1/system/health
+GET /api/v1/security/csrf-token
 ```
 
 ---

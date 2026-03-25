@@ -1,16 +1,34 @@
 # Logs
-logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+logs/
 
 node_modules
 dist
 dist-ssr
 *.local
+coverage/
+.cache/
+.eslintcache
+.parcel-cache/
+.vite/
+
+# Runtime process files
+*.pid
+*.seed
+*.pid.lock
+
+# Environment files (keep examples tracked)
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
 
 # Editor directories and files
 .vscode/*
