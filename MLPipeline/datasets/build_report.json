@@ -1,0 +1,32 @@
+{
+  "phish_cfg": {
+    "phish_tank_url_csv_gz": "http://data.phishtank.com/data/online-valid.csv.gz",
+    "user_agent": "phisx-mlpipeline/1.0 (github.com/your-org; contact=security@example.com)",
+    "timeout_s": 120.0,
+    "cache_hours": 2
+  },
+  "open_cfg": {
+    "community_feed_url": "https://raw.githubusercontent.com/openphish/public_feed/refs/heads/main/feed.txt",
+    "timeout_s": 120.0,
+    "user_agent": "phisx-mlpipeline/1.0 (github.com/your-org; contact=security@example.com)"
+  },
+  "maj_cfg": {
+    "majestic_csv_url": "http://downloads.majestic.com/majestic_million.csv",
+    "timeout_s": 120.0,
+    "user_agent": "phisx-mlpipeline/1.0 (github.com/your-org; contact=security@example.com)"
+  },
+  "num_phishing_urls": 53185,
+  "num_phishing_domains": 7091,
+  "num_legit_domains": 199406,
+  "num_legit_urls": 199406,
+  "train": {
+    "phishing": 25000,
+    "legit": 25000,
+    "total": 50000
+  },
+  "eval": {
+    "phishing": 1999,
+    "legit": 18001,
+    "total": 20000
+  }
+}

@@ -5,6 +5,7 @@ import { validateIncident } from "../models/schemas.js";
 import { AuditLog } from "../models/AuditLog.js";
 import { getLatestHealth, getIncidentEventsSince, pushIncidentEvent } from "../services/realtime.service.js";
 import { getApiMetricsSnapshot } from "../services/apiMetrics.service.js";
+import { observeInput } from "../services/adversarialMonitoring.service.js";
 
 const mapSeverityFromScore = (score) => {
   if (score >= 85) return "critical";
@@ -16,6 +17,7 @@ const mapSeverityFromScore = (score) => {
 export const analyzeUrlController = async (req, res, next) => {
   try {
     const { url, pageHtml = "", scriptContent = "" } = req.body;
+    observeInput({ ip: req.ip, type: "url", rawInput: url });
     const result = await analyzeUrl({ url, pageHtml, scriptContent });
 
     const incidentValidationPayload = {
@@ -79,6 +81,7 @@ export const analyzeUrlController = async (req, res, next) => {
 export const analyzeEmailController = async (req, res, next) => {
   try {
     const { subject, body } = req.body;
+    observeInput({ ip: req.ip, type: "email", rawInput: `${subject}\n${body}` });
     const result = await analyzeEmail({ subject, body });
 
     const incidentValidationPayload = {

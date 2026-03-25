@@ -69,6 +69,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1", analysisRoutes);
 app.use("/api/v1", incidentRoutes);
+app.use("/api/v1", mlRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

@@ -1,13 +1,13 @@
 import { extractUrlFeatures } from "../utils/featureExtractor.js";
 import { calculateRuleBasedScore, classifyRisk } from "./scoring.service.js";
-import { getMLScore } from "./ml.service.js";
+import { getUrlMLScore } from "./ml.service.js";
 import { validateSSLCertificate } from "../utils/sslValidator.js";
 import { detectCredentialHarvestingSignals } from "../utils/credentialDetector.js";
 
 export const analyzeUrl = async ({ url, pageHtml = "", scriptContent = "" }) => {
   const features = extractUrlFeatures(url);
   const ruleResult = calculateRuleBasedScore(features);
-  const mlScore = await getMLScore();
+  const mlScore = await getUrlMLScore({ url });
   const sslResult = await validateSSLCertificate(url);
   const credentialSignals = detectCredentialHarvestingSignals({ pageHtml, scriptContent });
 
