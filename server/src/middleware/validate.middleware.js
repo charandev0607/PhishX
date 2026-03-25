@@ -48,4 +48,20 @@ export const schemas = {
     sortBy: Joi.string().valid("createdAt", "score", "type", "status").default("createdAt"),
     order: Joi.string().valid("asc", "desc").default("desc"),
   }),
+  adminUsersQuery: Joi.object({
+    role: Joi.string().valid("admin", "analyst").optional(),
+    search: Joi.string().max(200).optional(),
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(20),
+  }),
+  adminUserRole: Joi.object({
+    role: Joi.string().valid("admin", "analyst").required(),
+  }),
+  adminPolicyUpdate: Joi.object({
+    autoBlockThreshold: Joi.number().min(0).max(100),
+    autoQuarantine: Joi.boolean(),
+    requireMfaForAdmins: Joi.boolean(),
+    notifyOnCritical: Joi.boolean(),
+    maxAlertsPerMinute: Joi.number().integer().min(1).max(1000),
+  }).min(1),
 };

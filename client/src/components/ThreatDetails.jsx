@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, FileText, AlertOctagon, Info, Code, MapPin, Search, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, FileText, AlertOctagon, Code, MapPin, Search, ShieldCheck } from 'lucide-react';
 import './ThreatDetails.css';
 
 const ThreatDetails = ({ threat, onBack }) => {
@@ -25,8 +25,29 @@ const ThreatDetails = ({ threat, onBack }) => {
     ]
   };
 
+  const normalizedReasoning = (displayThreat.aiReasoning && displayThreat.aiReasoning.length
+    ? displayThreat.aiReasoning
+    : (displayThreat.reasons || []).map((reason, index) => ({
+        score: `${Math.max(55, (displayThreat.score || 50) - index * 7)}%`,
+        state: (displayThreat.score || 0) >= 70 ? 'danger' : 'warning',
+        title: `Detection Signal ${index + 1}`,
+        desc: reason,
+      }))
+  );
+
+  const normalizedUrlAnalysis = (displayThreat.urlAnalysis && displayThreat.urlAnalysis.length
+    ? displayThreat.urlAnalysis
+    : [
+        {
+          part: 'Target',
+          value: displayThreat.target || displayThreat.input || 'Unknown',
+          state: (displayThreat.score || 0) >= 70 ? 'danger' : 'warning',
+          note: displayThreat.status || 'analysis',
+        },
+      ]
+  );
+
   const isCritical = displayThreat.severity === 'critical';
-  const isHigh = displayThreat.severity === 'high';
 
   const getScoreColor = () => {
     if (displayThreat.score > 85) return 'danger';
@@ -142,7 +163,7 @@ const ThreatDetails = ({ threat, onBack }) => {
             </div>
 
             <div className="reasoning-grid">
-              {displayThreat.aiReasoning.map((reason, i) => (
+              {normalizedReasoning.map((reason, i) => (
                 <div key={i} className={`reason-item glass-panel-light highlight-${reason.state}`}>
                   <div className="r-score">{reason.score}</div>
                   <div className="r-detail">
@@ -164,7 +185,7 @@ const ThreatDetails = ({ threat, onBack }) => {
               <h3>URL Forensic Breakdown</h3>
             </div>
             <div className="url-breakdown">
-              {displayThreat.urlAnalysis.map((part, i) => (
+              {normalizedUrlAnalysis.map((part, i) => (
                 <div key={i} className={`url-part ${part.state}`}>
                   <span className="part-label">{part.part}</span>
                   <span className="part-value">{part.value}</span>

@@ -66,6 +66,12 @@
     border-color: rgba(0, 255, 136, 0.2);
 }
 
+.ext-status.warn {
+    color: var(--status-warning);
+    background: rgba(255, 184, 0, 0.12);
+    border-color: rgba(255, 184, 0, 0.25);
+}
+
 .status-dot {
     width: 6px;
     height: 6px;
@@ -110,6 +116,16 @@
 .danger .circle {
     stroke: var(--status-danger);
     filter: drop-shadow(0 0 6px rgba(255, 0, 85, 0.6));
+}
+
+.warn .circle {
+    stroke: var(--status-warning);
+    filter: drop-shadow(0 0 6px rgba(255, 184, 0, 0.6));
+}
+
+.safe .circle {
+    stroke: var(--status-safe);
+    filter: drop-shadow(0 0 6px rgba(0, 255, 136, 0.5));
 }
 
 .risk-score {
@@ -249,6 +265,62 @@
 
 .danger-text:hover {
     color: var(--status-danger);
+}
+
+.analysis-mode-toggle {
+    display: flex;
+    gap: 8px;
+}
+
+.mode-btn {
+    flex: 1;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.mode-btn.active {
+    color: var(--accent-cyan);
+    border-color: rgba(0, 243, 255, 0.5);
+    background: rgba(0, 243, 255, 0.1);
+}
+
+.scan-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.scan-input-group label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.scan-input {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+}
+
+.scan-input:focus {
+    outline: none;
+    border-color: rgba(0, 243, 255, 0.5);
+}
+
+.realtime-popup {
+    border: 1px solid rgba(255, 184, 0, 0.3);
+    background: rgba(255, 184, 0, 0.1);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--text-primary);
+    font-size: 0.82rem;
 }
 /* Scan Flow Styles */
 .scan-flow-section {

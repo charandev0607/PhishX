@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Monitor, LayoutDashboard, Search, Cpu, LogOut } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Monitor, LayoutDashboard, Cpu, LogOut, Bell, ShieldAlert } from 'lucide-react';
+import { io } from 'socket.io-client';
 import './App.css';
 
 // Components
@@ -8,20 +9,138 @@ import AdminDashboard from './components/AdminDashboard';
 import ThreatDetails from './components/ThreatDetails';
 import MLEngineerDashboard from './components/MLEngineerDashboard';
 import Auth from './components/Auth';
+import {
+  SOCKET_BASE,
+  clearAuth,
+  getPollEvents,
+  getStoredAuth,
+  getSystemHealth,
+  logout,
+} from './services/api';
+
+const MAX_ALERTS = 8;
 
 function App() {
-  const [user, setUser] = useState(null); // null means not logged in
+  const [auth, setAuth] = useState(() => getStoredAuth());
   const [activeTab, setActiveTab] = useState('extension');
   const [selectedThreat, setSelectedThreat] = useState(null);
+  const [realtimeAlerts, setRealtimeAlerts] = useState([]);
+  const [health, setHealth] = useState(null);
+  const socketRef = useRef(null);
+  const latestPollCursorRef = useRef(null);
 
-  const handleLogin = (userData) => {
-    setUser(userData);
-    // If admin logs in, show admin dashboard default. If user, show extension.
-    setActiveTab(userData.role === 'admin' ? 'dashboard' : 'extension');
+  const user = auth?.user || null;
+  const isAdmin = user?.role === 'admin';
+  const latestAlert = useMemo(() => realtimeAlerts[0] || null, [realtimeAlerts]);
+
+  const pushRealtimeAlert = (alert) => {
+    setRealtimeAlerts((prev) => {
+      const next = [alert, ...prev.filter((item) => item.id !== alert.id)].slice(0, MAX_ALERTS);
+      return next;
+    });
   };
 
-  const handleLogout = () => {
-    setUser(null);
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchInitialHealth = async () => {
+      try {
+        const snapshot = await getSystemHealth();
+        if (!cancelled) {
+          setHealth(snapshot);
+        }
+      } catch {
+        // Ignore transient health errors.
+      }
+    };
+
+    fetchInitialHealth();
+    const timer = setInterval(fetchInitialHealth, 30000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!auth?.accessToken) {
+      return undefined;
+    }
+
+    const socket = io(SOCKET_BASE, {
+      transports: ['websocket', 'polling'],
+    });
+    socketRef.current = socket;
+
+    socket.on('incident:new', (incident) => {
+      pushRealtimeAlert({
+        id: incident.id || incident._id || `${Date.now()}-${Math.random()}`,
+        title: 'New Threat Detected',
+        severity: incident.status || 'suspicious',
+        detail: `${incident.type || 'threat'} • score ${incident.score ?? 'n/a'}`,
+        payload: incident,
+      });
+    });
+
+    socket.on('system:health', (snapshot) => {
+      setHealth(snapshot);
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [auth?.accessToken]);
+
+  useEffect(() => {
+    if (!auth?.accessToken) {
+      return undefined;
+    }
+
+    const pollEvents = async () => {
+      try {
+        const data = await getPollEvents({ since: latestPollCursorRef.current });
+        const incidents = data?.incidents || [];
+
+        incidents.forEach((incident) => {
+          pushRealtimeAlert({
+            id: incident.id || incident._id || `${Date.now()}-${Math.random()}`,
+            title: 'Threat Activity Update',
+            severity: incident.status || 'suspicious',
+            detail: `${incident.type || 'threat'} • score ${incident.score ?? 'n/a'}`,
+            payload: incident,
+          });
+        });
+
+        if (incidents.length > 0) {
+          latestPollCursorRef.current = incidents[incidents.length - 1].createdAt;
+        }
+
+        if (data?.health) {
+          setHealth(data.health);
+        }
+      } catch {
+        // Ignore intermittent polling errors.
+      }
+    };
+
+    pollEvents();
+    const timer = setInterval(pollEvents, 20000);
+    return () => clearInterval(timer);
+  }, [auth?.accessToken]);
+
+  const handleLogin = (authState) => {
+    setAuth(authState);
+    setActiveTab(authState.user.role === 'admin' ? 'dashboard' : 'extension');
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    clearAuth();
+    setAuth(null);
+    setSelectedThreat(null);
+    setRealtimeAlerts([]);
     setActiveTab('extension');
   };
 
@@ -35,16 +154,12 @@ function App() {
     setActiveTab(user?.role === 'admin' ? 'dashboard' : 'extension');
   };
 
-  // If no user is logged in, show the Auth screen
   if (!user) {
-    return <Auth onLogin={handleLogin} />;
+    return <Auth onLoginSuccess={handleLogin} />;
   }
-
-  const isAdmin = user.role === 'admin';
 
   return (
     <div className="app-container">
-      {/* Controls Container */}
       <div className="demo-controls glass-panel">
         <div className="demo-header">
           <Monitor color="var(--accent-cyan)" size={24} />
@@ -58,6 +173,13 @@ function App() {
             <LogOut size={16} />
           </button>
         </div>
+
+        {latestAlert ? (
+          <div className="live-alert-badge">
+            <Bell size={16} />
+            <span>{latestAlert.title}: {latestAlert.detail}</span>
+          </div>
+        ) : null}
         
         <div className="view-toggles">
           <button
@@ -67,8 +189,14 @@ function App() {
             Browser Extension UI
           </button>
           
-          {/* Admin / ML Views strictly available to 'admin' role */}
-          {isAdmin && (
+          <button
+            className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`}
+            onClick={() => setActiveTab('details')}
+          >
+            <ShieldAlert size={16} /> Threat Details
+          </button>
+
+          {isAdmin ? (
             <>
               <button
                 className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
@@ -83,18 +211,10 @@ function App() {
                 <Cpu size={16} /> ML Engineer Dashboard
               </button>
             </>
-          )}
-
-          <button
-            className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`}
-            onClick={() => setActiveTab('details')}
-          >
-            Threat Details View
-          </button>
+          ) : null}
         </div>
       </div>
 
-      {/* Main View Area */}
       <div className="view-container">
         {activeTab === 'extension' && (
           <div className="extension-showcase">
@@ -107,7 +227,10 @@ function App() {
               </div>
               <div className="browser-content">
                 <div className="extension-wrapper">
-                  <BrowserExtension />
+                  <BrowserExtension
+                    onThreatSelected={handleSelectThreat}
+                    latestAlert={latestAlert}
+                  />
                 </div>
               </div>
             </div>
@@ -115,7 +238,12 @@ function App() {
         )}
 
         {activeTab === 'dashboard' && isAdmin && (
-          <AdminDashboard onSelectThreat={handleSelectThreat} />
+          <AdminDashboard
+            onSelectThreat={handleSelectThreat}
+            liveAlerts={realtimeAlerts}
+            systemHealth={health}
+            userRole={user.role}
+          />
         )}
 
         {activeTab === 'ml-engineer' && isAdmin && (
@@ -123,7 +251,10 @@ function App() {
         )}
 
         {activeTab === 'details' && (
-          <ThreatDetails threat={selectedThreat} onBack={handleBackToDashboard} />
+          <ThreatDetails
+            threat={selectedThreat || latestAlert?.payload || null}
+            onBack={handleBackToDashboard}
+          />
         )}
       </div>
     </div>
