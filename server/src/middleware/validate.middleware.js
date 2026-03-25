@@ -48,4 +48,9 @@ export const schemas = {
     sortBy: Joi.string().valid("createdAt", "score", "type", "status").default("createdAt"),
     order: Joi.string().valid("asc", "desc").default("desc"),
   }),
+  mlFeedback: Joi.object({
+    incidentId: Joi.string().required(),
+    groundTruthStatus: Joi.string().valid("safe", "suspicious", "phishing").required(),
+    notes: Joi.string().max(2000).allow(""),
+  }),
 };

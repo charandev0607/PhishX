@@ -26,7 +26,6 @@ const ThreatDetails = ({ threat, onBack }) => {
   };
 
   const isCritical = displayThreat.severity === 'critical';
-  const isHigh = displayThreat.severity === 'high';
 
   const getScoreColor = () => {
     if (displayThreat.score > 85) return 'danger';

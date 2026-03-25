@@ -9,24 +9,24 @@ import {
 import { mockThreatFeed, threatTrendData, riskDistributionData, categoryData } from '../data/mockData';
 import './AdminDashboard.css';
 
+// Keep chart tooltip component stable across renders for lint + performance.
+const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="custom-tooltip glass-panel-light">
+                <p className="label">{`${label}`}</p>
+                <p className="intro" style={{ color: payload[0].stroke || payload[0].fill }}>
+                    {`${payload[0].name}: ${payload[0].value}`}
+                </p>
+            </div>
+        );
+    }
+    return null;
+};
+
 const AdminDashboard = ({ onSelectThreat }) => {
     const [activeFilter, setActiveFilter] = useState('24h');
     const [activeNav, setActiveNav] = useState('overview');
-
-    // Custom Tooltip for Recharts
-    const CustomTooltip = ({ active, payload, label }) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="custom-tooltip glass-panel-light">
-                    <p className="label">{`${label}`}</p>
-                    <p className="intro" style={{ color: payload[0].stroke || payload[0].fill }}>
-                        {`${payload[0].name}: ${payload[0].value}`}
-                    </p>
-                </div>
-            );
-        }
-        return null;
-    };
 
     return (
         <div className="dashboard-layout">
