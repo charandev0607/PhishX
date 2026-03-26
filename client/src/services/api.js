@@ -124,6 +124,23 @@ export const login = async ({ email, password }) => {
   return auth;
 };
 
+export const signup = async ({ email, password }) => {
+  const data = await request("/auth/signup", {
+    method: "POST",
+    auth: false,
+    body: { email, password },
+  });
+
+  const auth = {
+    user: data.user,
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+  };
+
+  saveAuth(auth);
+  return auth;
+};
+
 export const logout = async () => {
   const auth = getStoredAuth();
   if (auth?.refreshToken) {

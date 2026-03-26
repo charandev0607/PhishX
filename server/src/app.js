@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
 import analysisRoutes from "./routes/analysis.routes.js";
 import incidentRoutes from "./routes/incident.routes.js";
+import mlRoutes from "./routes/ml.routes.js";
 import securityRoutes from "./routes/security.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import { apiRateLimiter } from "./middleware/rateLimit.middleware.js";

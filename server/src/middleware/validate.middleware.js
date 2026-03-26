@@ -18,6 +18,10 @@ export const validate = (schema, property = "body") => (req, _res, next) => {
 };
 
 export const schemas = {
+  signup: Joi.object({
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    password: Joi.string().min(8).required(),
+  }),
   login: Joi.object({
     email: Joi.string().email({ tlds: { allow: false } }).required(),
     password: Joi.string().min(8).required(),
