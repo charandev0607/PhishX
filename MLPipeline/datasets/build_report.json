@@ -15,10 +15,10 @@
     "timeout_s": 120.0,
     "user_agent": "phisx-mlpipeline/1.0 (github.com/your-org; contact=security@example.com)"
   },
-  "num_phishing_urls": 53185,
-  "num_phishing_domains": 7091,
-  "num_legit_domains": 199406,
-  "num_legit_urls": 199406,
+  "num_phishing_urls": 53633,
+  "num_phishing_domains": 7397,
+  "num_legit_domains": 199409,
+  "num_legit_urls": 199409,
   "train": {
     "phishing": 25000,
     "legit": 25000,

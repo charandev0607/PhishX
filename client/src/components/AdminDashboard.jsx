@@ -25,8 +25,7 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { apiFetch } from '../lib/api';
 import './AdminDashboard.css';
 import {
   getIncidents,
@@ -43,340 +42,112 @@ const scoreBand = (score) => {
   return 'Low';
 };
 
-const typeCategory = (type) => {
-  if (type === 'email') return 'email';
-  if (type === 'url') return 'url';
-  return 'webpage';
-};
+const AdminDashboard = ({ onSelectThreat }) => {
+    const [activeFilter, setActiveFilter] = useState('24h');
+    const [activeNav, setActiveNav] = useState('overview');
+    const [incidents, setIncidents] = useState([]);
+    const [systemHealth, setSystemHealth] = useState(null);
 
-const formatDate = (value) => new Date(value).toLocaleString();
+    useEffect(() => {
+        const loadDashboardData = async () => {
+            try {
+                const [incidentsResp, healthResp] = await Promise.all([
+                    apiFetch('/api/v1/incidents?limit=200'),
+                    apiFetch('/api/v1/system/health'),
+                ]);
 
-const COLORS = {
-  Critical: '#ff0055',
-  High: '#ffb800',
-  Medium: '#00f3ff',
-  Low: '#00ff88',
-};
+                if (incidentsResp.ok) {
+                    const json = await incidentsResp.json();
+                    setIncidents(json?.data?.items ?? []);
+                }
 
-const AdminDashboard = ({ onSelectThreat, liveAlerts, systemHealth, userRole }) => {
-  const [activeNav, setActiveNav] = useState('overview');
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState('');
-  const [incidents, setIncidents] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0, limit: 20 });
-  const [filters, setFilters] = useState({
-    search: '',
-    type: '',
-    startDate: '',
-    endDate: '',
-    minScore: '',
-    maxScore: '',
-    page: 1,
-    limit: 20,
-  });
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const [users, setUsers] = useState([]);
-  const [usersLoading, setUsersLoading] = useState(false);
-  const [policies, setPolicies] = useState(null);
-  const [policyLoading, setPolicyLoading] = useState(false);
-  const [policyMessage, setPolicyMessage] = useState('');
-
-  const fetchUsers = async () => {
-    try {
-      setUsersLoading(true);
-      const response = await getUsers({ page: 1, limit: 50 });
-      setUsers(response.items || []);
-    } catch {
-      setUsers([]);
-    } finally {
-      setUsersLoading(false);
-    }
-  };
-
-  const fetchPolicies = async () => {
-    try {
-      setPolicyLoading(true);
-      setPolicyMessage('');
-      const response = await getPolicies();
-      setPolicies(response);
-    } catch (error) {
-      setPolicyMessage(error.message || 'Failed to load policies');
-    } finally {
-      setPolicyLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const fetchIncidents = async () => {
-      try {
-        setIsLoading(true);
-        setLoadError('');
-
-        const query = {
-          type: filters.type || undefined,
-          startDate: filters.startDate || undefined,
-          endDate: filters.endDate || undefined,
-          minScore: filters.minScore || undefined,
-          maxScore: filters.maxScore || undefined,
-          page: filters.page,
-          limit: filters.limit,
+                if (healthResp.ok) {
+                    const json = await healthResp.json();
+                    setSystemHealth(json?.data ?? null);
+                }
+            } catch {
+                setIncidents([]);
+                setSystemHealth(null);
+            }
         };
 
-        const response = await getIncidents(query);
-        let items = response.items || [];
+        loadDashboardData();
+    }, []);
 
-        if (filters.search) {
-          const searchValue = filters.search.toLowerCase();
-          items = items.filter(
-            (item) =>
-              item.input?.toLowerCase().includes(searchValue) ||
-              item.type?.toLowerCase().includes(searchValue) ||
-              item.status?.toLowerCase().includes(searchValue)
-          );
-        }
+    const mappedThreatFeed = useMemo(() => {
+        return incidents.map((incident) => {
+            const date = new Date(incident.createdAt);
+            const severity = incident.score >= 85 ? 'critical' : incident.score >= 70 ? 'high' : incident.score >= 40 ? 'medium' : 'low';
+            const status = incident.status === 'phishing' ? 'Blocked' : incident.status === 'suspicious' ? 'Quarantined' : 'Allowed';
+            return {
+                id: incident._id,
+                time: Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleTimeString(),
+                type: incident.type === 'url' ? 'URL Threat' : 'Email Threat',
+                target: incident.input,
+                brand: 'Unknown',
+                status,
+                severity,
+                score: incident.score,
+                ip: incident.metadata?.ip || 'N/A',
+                location: incident.metadata?.geo || 'N/A',
+                urlAnalysis: [],
+                aiReasoning: (incident.reasons || []).map((reason) => ({
+                    score: `${incident.score}%`,
+                    state: severity === 'critical' || severity === 'high' ? 'danger' : 'warning',
+                    title: 'Detection Signal',
+                    desc: reason,
+                })),
+            };
+        });
+    }, [incidents]);
 
-        setIncidents(items);
-        setPagination(response.pagination || { page: 1, pages: 1, total: items.length, limit: filters.limit });
-      } catch (error) {
-        setLoadError(error.message || 'Failed to load incidents');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const threatTrendData = useMemo(() => {
+        const byHour = new Map();
+        mappedThreatFeed.forEach((item) => {
+            const hour = item.time !== 'N/A' ? item.time.slice(0, 2) : '00';
+            byHour.set(hour, (byHour.get(hour) || 0) + 1);
+        });
+        return Array.from(byHour.entries())
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([hour, threats]) => ({ time: `${hour}:00`, threats }));
+    }, [mappedThreatFeed]);
 
-    fetchIncidents();
-  }, [filters, refreshKey]);
+    const riskDistributionData = useMemo(() => {
+        const counts = { Low: 0, Medium: 0, High: 0, Critical: 0 };
+        mappedThreatFeed.forEach((item) => {
+            if (item.severity === 'critical') counts.Critical += 1;
+            else if (item.severity === 'high') counts.High += 1;
+            else if (item.severity === 'medium') counts.Medium += 1;
+            else counts.Low += 1;
+        });
+        return [
+            { name: 'Low', value: counts.Low, color: '#00ff88' },
+            { name: 'Medium', value: counts.Medium, color: '#0066ff' },
+            { name: 'High', value: counts.High, color: '#ffb800' },
+            { name: 'Critical', value: counts.Critical, color: '#ff0055' },
+        ];
+    }, [mappedThreatFeed]);
 
-  useEffect(() => {
-    if (activeNav === 'users' && userRole === 'admin') {
-      fetchUsers();
-    }
+    const categoryData = useMemo(() => {
+        const counts = { URL: 0, Email: 0 };
+        mappedThreatFeed.forEach((item) => {
+            if (item.type === 'URL Threat') counts.URL += 1;
+            else counts.Email += 1;
+        });
+        return [
+            { name: 'URL Threats', value: counts.URL, color: '#9d00ff' },
+            { name: 'Email Threats', value: counts.Email, color: '#00f3ff' },
+        ];
+    }, [mappedThreatFeed]);
 
-    if (activeNav === 'policies' && userRole === 'admin') {
-      fetchPolicies();
-    }
-  }, [activeNav, userRole]);
-
-  const categoryData = useMemo(() => {
-    const totals = { email: 0, url: 0, webpage: 0 };
-    incidents.forEach((incident) => {
-      totals[typeCategory(incident.type)] += 1;
-    });
-
-    return [
-      { name: 'Email', value: totals.email, color: '#00f3ff' },
-      { name: 'URL', value: totals.url, color: '#ff0055' },
-      { name: 'Webpage', value: totals.webpage, color: '#9d00ff' },
-    ];
-  }, [incidents]);
-
-  const riskData = useMemo(() => {
-    const totals = { Critical: 0, High: 0, Medium: 0, Low: 0 };
-    incidents.forEach((incident) => {
-      totals[scoreBand(incident.score)] += 1;
-    });
-
-    return Object.entries(totals).map(([name, value]) => ({
-      name,
-      value,
-      color: COLORS[name],
-    }));
-  }, [incidents]);
-
-  const trendData = useMemo(() => {
-    const grouped = new Map();
-
-    incidents.forEach((incident) => {
-      const dateKey = new Date(incident.createdAt).toISOString().slice(0, 10);
-      grouped.set(dateKey, (grouped.get(dateKey) || 0) + 1);
-    });
-
-    return Array.from(grouped.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .slice(-10)
-      .map(([date, threats]) => ({ date, threats }));
-  }, [incidents]);
-
-  const locationData = useMemo(() => {
-    const grouped = new Map();
-
-    incidents.forEach((incident) => {
-      const location = incident.metadata?.location || incident.metadata?.country || 'Unknown';
-      grouped.set(location, (grouped.get(location) || 0) + 1);
-    });
-
-    return Array.from(grouped.entries())
-      .map(([location, count]) => ({ location, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
-  }, [incidents]);
-
-  const realtimeThreats = useMemo(() => {
-    const transformed = (liveAlerts || []).map((alert) => ({
-      id: alert.id,
-      createdAt: alert.payload?.createdAt || new Date().toISOString(),
-      input: alert.payload?.input || alert.detail,
-      type: alert.payload?.type || 'realtime',
-      score: alert.payload?.score || 0,
-      status: alert.severity || 'suspicious',
-      metadata: alert.payload?.metadata || {},
-      reasons: alert.payload?.reasons || [alert.detail],
-    }));
-
-    return transformed.slice(0, 10);
-  }, [liveAlerts]);
-
-  const topStats = useMemo(() => {
-    const total = incidents.length;
-    const critical = incidents.filter((incident) => incident.score >= 85).length;
-    const phishing = incidents.filter((incident) => incident.status === 'phishing').length;
-    const avgScore =
-      total === 0
-        ? 0
-        : Math.round(incidents.reduce((sum, incident) => sum + (incident.score || 0), 0) / total);
-
-    return { total, critical, phishing, avgScore };
-  }, [incidents]);
-
-  const exportCsv = () => {
-    const headers = ['id', 'createdAt', 'type', 'status', 'score', 'input'];
-    const rows = incidents.map((incident) =>
-      [incident._id, incident.createdAt, incident.type, incident.status, incident.score, incident.input]
-        .map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`)
-        .join(',')
-    );
-
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `incidents-${Date.now()}.csv`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const exportPdf = () => {
-    const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(14);
-    doc.text('Sentinel AI Incident Report', 14, 16);
-    doc.setFontSize(10);
-    doc.text(`Generated at ${new Date().toLocaleString()}`, 14, 24);
-
-    autoTable(doc, {
-      startY: 30,
-      head: [['Time', 'Type', 'Status', 'Score', 'Input']],
-      body: incidents.map((incident) => [
-        formatDate(incident.createdAt),
-        incident.type,
-        incident.status,
-        String(incident.score),
-        incident.input,
-      ]),
-      styles: { fontSize: 8 },
-      columnStyles: {
-        4: { cellWidth: 120 },
-      },
-    });
-
-    doc.save(`incidents-${Date.now()}.pdf`);
-  };
-
-  const handleRoleUpdate = async (userId, role) => {
-    try {
-      await updateUserRole({ userId, role });
-      fetchUsers();
-    } catch {
-      // keep current list if role update fails
-    }
-  };
-
-  const handlePolicySave = async () => {
-    try {
-      setPolicyLoading(true);
-      await updatePolicies({
-        autoBlockThreshold: Number(policies.autoBlockThreshold),
-        autoQuarantine: Boolean(policies.autoQuarantine),
-        requireMfaForAdmins: Boolean(policies.requireMfaForAdmins),
-        notifyOnCritical: Boolean(policies.notifyOnCritical),
-        maxAlertsPerMinute: Number(policies.maxAlertsPerMinute),
-      });
-      setPolicyMessage('Policies saved successfully');
-    } catch (error) {
-      setPolicyMessage(error.message || 'Failed to save policies');
-    } finally {
-      setPolicyLoading(false);
-    }
-  };
-
-  return (
-    <div className="dashboard-layout">
-      <aside className="sidebar glass-panel">
-        <div className="brand">
-          <div className="logo-pulse"></div>
-          <h2>Sentinel AI</h2>
-          <span className="badge">ENTERPRISE</span>
-        </div>
-
-        <nav className="nav-menu">
-          <button className={`nav-item ${activeNav === 'overview' ? 'active' : ''}`} onClick={() => setActiveNav('overview')}>
-            <Activity size={20} /> Real-Time Dashboard
-          </button>
-          <button className={`nav-item ${activeNav === 'reports' ? 'active' : ''}`} onClick={() => setActiveNav('reports')}>
-            <FileText size={20} /> Incident Reports
-          </button>
-          {userRole === 'admin' ? (
-            <>
-              <button className={`nav-item ${activeNav === 'users' ? 'active' : ''}`} onClick={() => setActiveNav('users')}>
-                <Users size={20} /> User Management
-              </button>
-              <button className={`nav-item ${activeNav === 'policies' ? 'active' : ''}`} onClick={() => setActiveNav('policies')}>
-                <Settings size={20} /> Policy Management
-              </button>
-            </>
-          ) : null}
-        </nav>
-
-        <div className="system-health">
-          <div className="health-header">
-            <span>System Health</span>
-            <span className="status-good">Online</span>
-          </div>
-          <div className="progress-bg">
-            <div className="progress-fill" style={{ width: `${Math.max(10, 100 - Math.round((systemHealth?.memory?.heapUsed || 0) / 5000000))}%` }}></div>
-          </div>
-          <p>Uptime: {Math.round(systemHealth?.uptime || 0)}s • Latency: {systemHealth?.responseTime || 0}ms</p>
-        </div>
-      </aside>
-
-      <main className="main-content">
-        <header className="topbar">
-          <div className="search-bar glass-panel-light">
-            <Search size={18} />
-            <input
-              type="text"
-              value={filters.search}
-              placeholder="Search incidents by URL, type or status"
-              onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
-            />
-          </div>
-
-          <div className="topbar-actions">
-            <div className="notification-icon">
-              <Bell size={22} />
-              {realtimeThreats.length > 0 ? <div className="indicator"></div> : null}
-            </div>
-          </div>
-        </header>
-
-        {activeNav === 'overview' ? (
-          <>
-            <div className="stats-grid">
-              <div className="stat-card glass-panel-light">
-                <div className="stat-header">
-                  <h3>Total Threats</h3>
-                  <ShieldAlert size={20} />
+    return (
+        <div className="dashboard-layout">
+            {/* Sidebar */}
+            <aside className="sidebar glass-panel">
+                <div className="brand">
+                    <div className="logo-pulse"></div>
+                    <h2>Sentinel AI</h2>
+                    <span className="badge">ENTERPRISE</span>
                 </div>
                 <div className="stat-value">{topStats.total}</div>
                 <div className="stat-trend positive">Active dataset</div>
@@ -399,87 +170,90 @@ const AdminDashboard = ({ onSelectThreat, liveAlerts, systemHealth, userRole }) 
               </div>
             </div>
 
-            <div className="filters-grid glass-panel" style={{ padding: 16, marginBottom: 16 }}>
-              <select value={filters.type} onChange={(event) => setFilters((prev) => ({ ...prev, type: event.target.value }))}>
-                <option value="">All Types</option>
-                <option value="url">URL</option>
-                <option value="email">Email</option>
-                <option value="webpage">Webpage</option>
-              </select>
-              <input type="date" value={filters.startDate} onChange={(event) => setFilters((prev) => ({ ...prev, startDate: event.target.value }))} />
-              <input type="date" value={filters.endDate} onChange={(event) => setFilters((prev) => ({ ...prev, endDate: event.target.value }))} />
-              <input type="number" placeholder="Min score" value={filters.minScore} onChange={(event) => setFilters((prev) => ({ ...prev, minScore: event.target.value }))} />
-              <input type="number" placeholder="Max score" value={filters.maxScore} onChange={(event) => setFilters((prev) => ({ ...prev, maxScore: event.target.value }))} />
-              <button
-                className="btn-primary"
-                onClick={() => {
-                  setFilters((prev) => ({ ...prev, page: 1 }));
-                  setRefreshKey((prev) => prev + 1);
-                }}
-              >
-                Apply Filters
-              </button>
-            </div>
+                <nav className="nav-menu">
+                    <button className={`nav-item ${activeNav === 'overview' ? 'active' : ''}`} onClick={() => setActiveNav('overview')}>
+                        <Activity size={20} /> View Real-Time Dashboard
+                    </button>
+                    <button className={`nav-item ${activeNav === 'threats' ? 'active' : ''}`} onClick={() => setActiveNav('threats')}>
+                        <ShieldAlert size={20} /> Monitor Threat Feed
+                        <span className="nav-badge pulse-badge">{mappedThreatFeed.filter(t => t.status === "Blocked").length}</span>
+                    </button>
+                    <button className={`nav-item ${activeNav === 'reports' ? 'active' : ''}`} onClick={() => setActiveNav('reports')}>
+                        <FileText size={20} /> View Incident Reports
+                    </button>
+                    <button className={`nav-item ${activeNav === 'analytics' ? 'active' : ''}`} onClick={() => setActiveNav('analytics')}>
+                        <TrendingUp size={20} /> Analytics
+                    </button>
+                    <button className={`nav-item ${activeNav === 'users' ? 'active' : ''}`} onClick={() => setActiveNav('users')}>
+                        <Users size={20} /> Users
+                    </button>
+                    <button className={`nav-item ${activeNav === 'policies' ? 'active' : ''}`} onClick={() => setActiveNav('policies')}>
+                        <Settings size={20} /> Policies
+                    </button>
+                </nav>
 
-            {isLoading ? <p>Loading incidents...</p> : null}
-            {loadError ? <p style={{ color: 'var(--status-danger)' }}>{loadError}</p> : null}
-
-            <div className="dashboard-content">
-              <div className="charts-column">
-                <div className="charts-section glass-panel">
-                  <div className="section-header">
-                    <h3>Historical Threat Trend</h3>
-                  </div>
-                  <div style={{ height: 280 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={trendData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                        <XAxis dataKey="date" stroke="#a0a0b0" />
-                        <YAxis stroke="#a0a0b0" />
-                        <Tooltip />
-                        <Area type="monotone" dataKey="threats" stroke="#00f3ff" fill="rgba(0,243,255,0.2)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
+                <div className="system-health">
+                    <div className="health-header">
+                        <span>System Health</span>
+                        <span className="status-good">Optimal</span>
+                    </div>
+                    <div className="progress-bg"><div className="progress-fill" style={{ width: '98%' }}></div></div>
+                    <p>AI Core: Online • Latency: {systemHealth?.responseTime ?? 'N/A'}ms</p>
                 </div>
 
-                <div className="small-charts-row">
-                  <div className="chart-card glass-panel">
-                    <div className="section-header">
-                      <h3>Threat Category Breakdown</h3>
+                    <div className="topbar-actions">
+                        <div className="notification-icon">
+                            <Bell size={24} />
+                            <div className="indicator"></div>
+                        </div>
+                        <div className="admin-profile">
+                            <img src="https://i.pravatar.cc/100?img=33" alt="Admin" className="avatar" />
+                            <div className="profile-info">
+                                <span className="name">A. Security</span>
+                                <span className="role">Global Admin</span>
+                            </div>
+                        </div>
                     </div>
-                    <div style={{ height: 240 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
-                            {categoryData.map((entry) => (
-                              <Cell key={entry.name} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
+                </header>
+
+                {/* Dashboard Cards */}
+                <div className="stats-grid">
+                    <div className="stat-card glass-panel-light">
+                        <div className="stat-header">
+                            <h3>Total Threats (24h)</h3>
+                            <ShieldAlert size={20} />
+                        </div>
+                        <div className="stat-value">{mappedThreatFeed.length}</div>
+                        <div className="stat-trend positive">
+                            ↑ +12% vs yesterday
+                        </div>
                     </div>
                   </div>
 
-                  <div className="chart-card glass-panel">
-                    <div className="section-header">
-                      <h3>Risk Score Distribution</h3>
+                    <div className="stat-card glass-panel-light highlight-danger">
+                        <div className="stat-header">
+                            <h3>Phishing Blocked</h3>
+                            <AlertTriangle size={20} />
+                        </div>
+                        <div className="stat-value">{mappedThreatFeed.filter(t => t.status === 'Blocked').length}</div>
+                        <div className="stat-trend negative">
+                            ↑ +4% escalation
+                        </div>
                     </div>
-                    <div style={{ height: 240 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={riskData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                          <XAxis dataKey="name" stroke="#a0a0b0" />
-                          <YAxis stroke="#a0a0b0" />
-                          <Tooltip />
-                          <Bar dataKey="value">
-                            {riskData.map((entry) => (
-                              <Cell key={entry.name} fill={entry.color} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+
+                    <div className="stat-card glass-panel-light highlight-cyan">
+                        <div className="stat-header">
+                            <h3>Detection Accuracy</h3>
+                            <ShieldCheck size={20} />
+                        </div>
+                        <div className="stat-value">
+                            {mappedThreatFeed.length > 0
+                                ? `${Math.round((mappedThreatFeed.filter(t => t.status !== 'Allowed').length / mappedThreatFeed.length) * 100)}%`
+                                : 'N/A'}
+                        </div>
+                        <div className="stat-trend positive">
+                            ↑ +0.01% optimized
+                        </div>
                     </div>
                   </div>
                 </div>
@@ -510,16 +284,78 @@ const AdminDashboard = ({ onSelectThreat, liveAlerts, systemHealth, userRole }) 
                   ))}
                 </div>
 
-                <div className="section-header" style={{ marginTop: 16 }}>
-                  <h3>Threat Activity Map/List</h3>
-                </div>
-                <div className="location-list">
-                  {locationData.map((location) => (
-                    <div key={location.location} className="location-item">
-                      <span>{location.location}</span>
-                      <strong>{location.count}</strong>
+                    {/* Right Column: Live Feed */}
+                    <div className="live-feed glass-panel">
+                        <div className="section-header">
+                            <h3>Live Threat Feed</h3>
+                            <span className="live-indicator">LIVE</span>
+                        </div>
+                        <div className="feed-list">
+                            {mappedThreatFeed.map(threat => (
+                                <div
+                                    key={threat.id}
+                                    className={`feed-item ${threat.severity}`}
+                                    onClick={() => onSelectThreat && onSelectThreat(threat)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <div className="feed-time">{threat.time}</div>
+                                    <div className="feed-details">
+                                        <span className="type">{threat.type}</span>
+                                        <span className="target">Target: {threat.target}</span>
+                                    </div>
+                                    <div className="feed-action">
+                                        <span className={`status-badge ${threat.status.toLowerCase()}`}>
+                                            {threat.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                  ))}
+                        </>
+                    )}
+                    
+                    {/* Add View for Incident Reports */}
+                    {activeNav === 'reports' && (
+                        <div className="reports-view fade-in glass-panel" style={{ width: '100%', padding: '30px' }}>
+                            <div className="section-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between' }}>
+                                <h3>Incident Reports</h3>
+                                <button className="btn-primary" type="button">
+                                    <DownloadCloud size={18} style={{marginRight: '8px'}} /> Generate Reports
+                                </button>
+                            </div>
+                            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', color: 'var(--text-secondary)' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
+                                        <th style={{ padding: '12px 8px' }}>Threat ID</th>
+                                        <th style={{ padding: '12px 8px' }}>Time</th>
+                                        <th style={{ padding: '12px 8px' }}>Type</th>
+                                        <th style={{ padding: '12px 8px' }}>Target</th>
+                                        <th style={{ padding: '12px 8px' }}>Severity</th>
+                                        <th style={{ padding: '12px 8px' }}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {mappedThreatFeed.map(threat => (
+                                        <tr key={threat.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }} onClick={() => onSelectThreat && onSelectThreat(threat)}>
+                                            <td style={{ padding: '12px 8px', color: 'var(--accent-cyan)' }}>{threat.id}</td>
+                                            <td style={{ padding: '12px 8px' }}>{threat.time}</td>
+                                            <td style={{ padding: '12px 8px' }}>{threat.type}</td>
+                                            <td style={{ padding: '12px 8px' }}>{threat.target}</td>
+                                            <td style={{ padding: '12px 8px', color: threat.severity === 'critical' ? 'var(--status-danger)' : 'var(--status-warning)' }}>
+                                                {threat.severity.toUpperCase()}
+                                            </td>
+                                            <td style={{ padding: '12px 8px' }}>
+                                                <button className="btn-text" style={{ padding: 0 }} type="button" onClick={(e) => { e.stopPropagation(); }}>
+                                                    <FileText size={16} /> Export
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
               </div>
             </div>

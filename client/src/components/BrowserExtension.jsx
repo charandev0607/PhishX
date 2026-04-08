@@ -1,101 +1,63 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../lib/api';
 import './BrowserExtension.css';
 import { analyzeEmail, analyzeUrl } from '../services/api';
 
-const toStatusLabel = (score) => {
-    if (score >= 70) return 'Phishing Risk';
-    if (score >= 40) return 'Suspicious';
-    return 'Safe';
-};
-
-const toIndicatorClass = (score) => {
-    if (score >= 70) return 'danger';
-    if (score >= 40) return 'warn';
-    return 'safe';
-};
-
-const recommendedAction = (status, score) => {
-    if (status === 'phishing' || score >= 70) return 'Block navigation and quarantine the destination.';
-    if (status === 'suspicious' || score >= 40) return 'Proceed only with verification and MFA challenge.';
-    return 'Allow access and continue passive monitoring.';
-};
-
-const BrowserExtension = ({ onThreatSelected, latestAlert }) => {
-    const [scanState, setScanState] = useState('idle');
+const BrowserExtension = ({ onThreatDetected }) => {
+    const [scanState, setScanState] = useState('idle'); // idle, scanning, analyzing, complete
     const [mode, setMode] = useState('url');
-    const [urlInput, setUrlInput] = useState('https://paypal-security-update-verify.com/login');
-    const [emailSubject, setEmailSubject] = useState('Urgent: Verify your payroll account');
-    const [emailBody, setEmailBody] = useState('Please verify your login immediately to prevent account suspension.');
-    const [error, setError] = useState('');
+    const [url, setUrl] = useState('');
+    const [subject, setSubject] = useState('');
+    const [body, setBody] = useState('');
     const [result, setResult] = useState(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const startScan = async () => {
+        setError('');
+        setResult(null);
+        setScanState('scanning');
         try {
-            setIsLoading(true);
-            setError('');
-            setResult(null);
-            setScanState('scanning');
-
-            let response;
-            if (mode === 'url') {
-                setScanState('analyzing');
-                response = await analyzeUrl({
-                    url: urlInput,
-                    pageHtml: '<form><input type="password" /></form>',
-                    scriptContent: 'eval("obfuscated")',
-                });
-            } else {
-                setScanState('analyzing');
-                response = await analyzeEmail({
-                    subject: emailSubject,
-                    body: emailBody,
+            const endpoint = mode === 'url' ? '/api/v1/url-analyze' : '/api/v1/email-analyze';
+            const payload = mode === 'url'
+                ? { url }
+                : { subject, body };
+            const res = await apiFetch(endpoint, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const json = await res.json();
+            if (!res.ok || !json?.data) {
+                setError(json?.message || 'Analysis failed.');
+                setScanState('idle');
+                return;
+            }
+            setResult(json.data);
+            setScanState('complete');
+            if (onThreatDetected) {
+                onThreatDetected({
+                    id: `LIVE-${Date.now()}`,
+                    target: mode === 'url' ? url : subject,
+                    brand: 'Unknown',
+                    severity: json.data.score >= 85 ? 'critical' : json.data.score >= 70 ? 'high' : json.data.score >= 40 ? 'medium' : 'low',
+                    score: json.data.score,
+                    ip: 'N/A',
+                    location: 'N/A',
+                    type: mode === 'url' ? 'URL Threat' : 'Email Threat',
+                    status: json.data.status === 'phishing' ? 'Blocked' : json.data.status === 'suspicious' ? 'Quarantined' : 'Allowed',
+                    urlAnalysis: [],
+                    aiReasoning: (json.data.reasons || []).map((reason) => ({
+                        score: `${json.data.score}%`,
+                        state: json.data.score >= 70 ? 'danger' : 'warning',
+                        title: 'Detection Signal',
+                        desc: reason,
+                    })),
                 });
             }
-
-            setScanState('detecting');
-            const normalized = {
-                ...response,
-                statusLabel: toStatusLabel(response.score),
-                indicatorClass: toIndicatorClass(response.score),
-                recommendedAction: recommendedAction(response.status, response.score),
-            };
-
-            setResult(normalized);
-            setScanState('complete');
-        } catch (scanError) {
+        } catch {
+            setError('Could not connect to analysis API.');
             setScanState('idle');
-            setError(scanError.message || 'Scan failed. Please try again.');
-        } finally {
-            setIsLoading(false);
         }
-    };
-
-    const openThreatDetails = () => {
-        if (!result || !onThreatSelected) return;
-
-        const detailsPayload = {
-            id: `EXT-${Date.now()}`,
-            target: mode === 'url' ? urlInput : 'email://message',
-            brand: 'Unknown',
-            severity: result.score >= 85 ? 'critical' : result.score >= 70 ? 'high' : result.score >= 40 ? 'medium' : 'low',
-            score: result.score,
-            type: mode === 'url' ? 'URL Analysis' : 'Email Analysis',
-            location: 'N/A',
-            ip: 'N/A',
-            aiReasoning: (result.reasons || []).map((reason, index) => ({
-                score: `${Math.max(50, result.score - index * 8)}%`,
-                state: result.score >= 70 ? 'danger' : 'warning',
-                title: `Signal ${index + 1}`,
-                desc: reason,
-            })),
-            urlAnalysis: [
-                { part: 'Input', value: mode === 'url' ? urlInput : emailSubject, state: result.indicatorClass, note: result.statusLabel },
-                { part: 'Action', value: result.recommendedAction, state: 'warning', note: '' },
-            ],
-        };
-
-        onThreatSelected(detailsPayload);
     };
 
     return (
@@ -170,16 +132,49 @@ const BrowserExtension = ({ onThreatSelected, latestAlert }) => {
                     </div>
                     <div className="scan-text">
                         <h3>Ready to Scan</h3>
-                        <p>Analyze links and suspicious messages in real-time</p>
+                        <p>Analyze real URL or email content for phishing threats</p>
                     </div>
-                    <button className="btn-primary scan-btn" onClick={startScan} disabled={isLoading}>
-                        {isLoading ? 'Scanning...' : 'Scan Now'}
-                    </button>
-                    {error ? <p style={{ color: 'var(--status-danger)' }}>{error}</p> : null}
+                    <div style={{ width: '100%', display: 'grid', gap: '10px' }}>
+                        <div className="role-selector">
+                            <button type="button" className={`role-btn ${mode === 'url' ? 'active' : ''}`} onClick={() => setMode('url')}>URL</button>
+                            <button type="button" className={`role-btn ${mode === 'email' ? 'active' : ''}`} onClick={() => setMode('email')}>Email</button>
+                        </div>
+                        {mode === 'url' ? (
+                            <input
+                                className="form-input"
+                                type="url"
+                                placeholder="https://example.com/login"
+                                value={url}
+                                onChange={(e) => setUrl(e.target.value)}
+                            />
+                        ) : (
+                            <>
+                                <input
+                                    className="form-input"
+                                    type="text"
+                                    placeholder="Email subject"
+                                    value={subject}
+                                    onChange={(e) => setSubject(e.target.value)}
+                                />
+                                <textarea
+                                    className="form-input"
+                                    rows={4}
+                                    placeholder="Email body"
+                                    value={body}
+                                    onChange={(e) => setBody(e.target.value)}
+                                />
+                            </>
+                        )}
+                        {error && <p style={{ color: '#ff5f7a' }}>{error}</p>}
+                        <button className="btn-primary scan-btn" onClick={startScan}>
+                            Scan {mode === 'url' ? 'URL' : 'Email'}
+                        </button>
+                    </div>
                 </div>
             )}
 
-            {['scanning', 'analyzing', 'detecting', 'storing'].includes(scanState) && (
+            {/* Active Scan States */}
+            {['scanning'].includes(scanState) && (
                 <div className="scan-flow-section active-scan">
                     <div className="scanning-animation">
                         <div className="scanner-target">
@@ -190,9 +185,6 @@ const BrowserExtension = ({ onThreatSelected, latestAlert }) => {
                     </div>
                     <h3 className="scan-status-text">
                         {scanState === 'scanning' && 'Scanning URL / Email...'}
-                        {scanState === 'analyzing' && 'Analyzing URL using ML Model...'}
-                        {scanState === 'detecting' && 'Detecting Suspicious Patterns...'}
-                        {scanState === 'storing' && 'Storing Incident Data...'}
                     </h3>
                     <div className="progress-bar-container">
                         <div className={`progress-filled state-${scanState}`}></div>
@@ -218,7 +210,7 @@ const BrowserExtension = ({ onThreatSelected, latestAlert }) => {
                                 />
                             </svg>
                             <div className="risk-score">
-                                <h2>{result.score}%</h2>
+                                <h2>{result?.score ?? 0}%</h2>
                                 <span>Threat Score</span>
                             </div>
                         </div>
@@ -232,11 +224,9 @@ const BrowserExtension = ({ onThreatSelected, latestAlert }) => {
                             <h4>Threat Details Panel</h4>
                         </div>
                         <ul className="reasoning-list">
-                            {(result.reasons || []).map((reason) => (
-                                <li key={reason}>
-                                    <span className={`icon ${result.indicatorClass === 'safe' ? 'info' : result.indicatorClass}`}>
-                                        {result.indicatorClass === 'danger' ? '!' : result.indicatorClass === 'warn' ? '!' : 'i'}
-                                    </span>
+                            {(result?.reasons || []).map((reason, idx) => (
+                                <li key={idx}>
+                                    <span className="icon info">i</span>
                                     <span>{reason}</span>
                                 </li>
                             ))}
@@ -247,14 +237,10 @@ const BrowserExtension = ({ onThreatSelected, latestAlert }) => {
                     </div>
 
                     <div className="ext-actions fade-in delay-2">
-                        <button className="btn-primary" onClick={openThreatDetails}>
+                        <button className="btn-primary" onClick={() => { setScanState('idle'); setResult(null); }}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-                            Open Detailed Forensics
+                            New Scan
                         </button>
-                        <div className="secondary-actions">
-                            <button className="btn-text" onClick={() => setScanState('idle')}>New Scan</button>
-                            <button className="btn-text danger-text" onClick={() => setUrlInput('https://paypal-security-update-verify.com/login')}>Load Test Threat</button>
-                        </div>
                     </div>
                 </>
             )}

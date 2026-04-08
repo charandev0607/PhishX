@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Monitor, LayoutDashboard, Cpu, LogOut, Bell, ShieldAlert } from 'lucide-react';
-import { io } from 'socket.io-client';
+import React, { useEffect, useState } from 'react';
+import { Monitor, LayoutDashboard, Search, Cpu, LogOut } from 'lucide-react';
 import './App.css';
+import { apiFetch, setApiSession, setApiSessionUpdateHandler } from './lib/api';
 
 // Components
 import BrowserExtension from './components/BrowserExtension';
@@ -21,7 +21,25 @@ import {
 const MAX_ALERTS = 8;
 
 function App() {
-  const [auth, setAuth] = useState(() => getStoredAuth());
+  const initialAuth = (() => {
+    try {
+      const saved = localStorage.getItem('phishx_auth');
+      if (!saved) return { user: null, tokens: { accessToken: null, refreshToken: null } };
+      const parsed = JSON.parse(saved);
+      if (parsed?.user && parsed?.accessToken && parsed?.refreshToken) {
+        return {
+          user: parsed.user,
+          tokens: { accessToken: parsed.accessToken, refreshToken: parsed.refreshToken },
+        };
+      }
+      return { user: null, tokens: { accessToken: null, refreshToken: null } };
+    } catch {
+      return { user: null, tokens: { accessToken: null, refreshToken: null } };
+    }
+  })();
+
+  const [user, setUser] = useState(initialAuth.user); // null means not logged in
+  const [tokens, setTokens] = useState(initialAuth.tokens);
   const [activeTab, setActiveTab] = useState('extension');
   const [selectedThreat, setSelectedThreat] = useState(null);
   const [realtimeAlerts, setRealtimeAlerts] = useState([]);
@@ -33,114 +51,43 @@ function App() {
   const isAdmin = user?.role === 'admin';
   const latestAlert = useMemo(() => realtimeAlerts[0] || null, [realtimeAlerts]);
 
-  const pushRealtimeAlert = (alert) => {
-    setRealtimeAlerts((prev) => {
-      const next = [alert, ...prev.filter((item) => item.id !== alert.id)].slice(0, MAX_ALERTS);
-      return next;
-    });
-  };
-
   useEffect(() => {
-    let cancelled = false;
-
-    const fetchInitialHealth = async () => {
-      try {
-        const snapshot = await getSystemHealth();
-        if (!cancelled) {
-          setHealth(snapshot);
-        }
-      } catch {
-        // Ignore transient health errors.
+    setApiSession(tokens);
+    setApiSessionUpdateHandler((nextTokens) => {
+      setTokens(nextTokens);
+      if (user) {
+        localStorage.setItem('phishx_auth', JSON.stringify({ user, ...nextTokens }));
       }
-    };
-
-    fetchInitialHealth();
-    const timer = setInterval(fetchInitialHealth, 30000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!auth?.accessToken) {
-      return undefined;
-    }
-
-    const socket = io(SOCKET_BASE, {
-      transports: ['websocket', 'polling'],
     });
-    socketRef.current = socket;
+  }, [tokens, user]);
 
-    socket.on('incident:new', (incident) => {
-      pushRealtimeAlert({
-        id: incident.id || incident._id || `${Date.now()}-${Math.random()}`,
-        title: 'New Threat Detected',
-        severity: incident.status || 'suspicious',
-        detail: `${incident.type || 'threat'} • score ${incident.score ?? 'n/a'}`,
-        payload: incident,
-      });
-    });
-
-    socket.on('system:health', (snapshot) => {
-      setHealth(snapshot);
-    });
-
-    return () => {
-      socket.disconnect();
-      socketRef.current = null;
-    };
-  }, [auth?.accessToken]);
-
-  useEffect(() => {
-    if (!auth?.accessToken) {
-      return undefined;
-    }
-
-    const pollEvents = async () => {
-      try {
-        const data = await getPollEvents({ since: latestPollCursorRef.current });
-        const incidents = data?.incidents || [];
-
-        incidents.forEach((incident) => {
-          pushRealtimeAlert({
-            id: incident.id || incident._id || `${Date.now()}-${Math.random()}`,
-            title: 'Threat Activity Update',
-            severity: incident.status || 'suspicious',
-            detail: `${incident.type || 'threat'} • score ${incident.score ?? 'n/a'}`,
-            payload: incident,
-          });
-        });
-
-        if (incidents.length > 0) {
-          latestPollCursorRef.current = incidents[incidents.length - 1].createdAt;
-        }
-
-        if (data?.health) {
-          setHealth(data.health);
-        }
-      } catch {
-        // Ignore intermittent polling errors.
-      }
-    };
-
-    pollEvents();
-    const timer = setInterval(pollEvents, 20000);
-    return () => clearInterval(timer);
-  }, [auth?.accessToken]);
-
-  const handleLogin = (authState) => {
-    setAuth(authState);
-    setActiveTab(authState.user.role === 'admin' ? 'dashboard' : 'extension');
+  const handleLogin = ({ user: userData, accessToken, refreshToken }) => {
+    setUser(userData);
+    const nextTokens = { accessToken, refreshToken };
+    setTokens(nextTokens);
+    setApiSession(nextTokens);
+    localStorage.setItem('phishx_auth', JSON.stringify({ user: userData, accessToken, refreshToken }));
+    // If admin logs in, show admin dashboard default. If user, show extension.
+    setActiveTab(userData.role === 'admin' ? 'dashboard' : 'extension');
   };
 
   const handleLogout = async () => {
-    await logout();
-    clearAuth();
-    setAuth(null);
-    setSelectedThreat(null);
-    setRealtimeAlerts([]);
+    if (tokens.refreshToken) {
+      try {
+        await apiFetch('/api/v1/auth/logout', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+        }, { retryOn401: false });
+      } catch {
+        // Ignore logout API errors during local signout.
+      }
+    }
+    setUser(null);
+    const empty = { accessToken: null, refreshToken: null };
+    setTokens(empty);
+    setApiSession(empty);
+    localStorage.removeItem('phishx_auth');
     setActiveTab('extension');
   };
 
@@ -227,10 +174,7 @@ function App() {
               </div>
               <div className="browser-content">
                 <div className="extension-wrapper">
-                  <BrowserExtension
-                    onThreatSelected={handleSelectThreat}
-                    latestAlert={latestAlert}
-                  />
+                  <BrowserExtension onThreatDetected={handleSelectThreat} />
                 </div>
               </div>
             </div>
