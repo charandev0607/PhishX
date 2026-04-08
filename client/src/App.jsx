@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Monitor, LayoutDashboard, Search, Cpu, LogOut } from 'lucide-react';
 import './App.css';
+import { apiFetch, setApiSession, setApiSessionUpdateHandler } from './lib/api';
 
 // Components
 import BrowserExtension from './components/BrowserExtension';
@@ -10,18 +11,65 @@ import MLEngineerDashboard from './components/MLEngineerDashboard';
 import Auth from './components/Auth';
 
 function App() {
-  const [user, setUser] = useState(null); // null means not logged in
+  const initialAuth = (() => {
+    try {
+      const saved = localStorage.getItem('phishx_auth');
+      if (!saved) return { user: null, tokens: { accessToken: null, refreshToken: null } };
+      const parsed = JSON.parse(saved);
+      if (parsed?.user && parsed?.accessToken && parsed?.refreshToken) {
+        return {
+          user: parsed.user,
+          tokens: { accessToken: parsed.accessToken, refreshToken: parsed.refreshToken },
+        };
+      }
+      return { user: null, tokens: { accessToken: null, refreshToken: null } };
+    } catch {
+      return { user: null, tokens: { accessToken: null, refreshToken: null } };
+    }
+  })();
+
+  const [user, setUser] = useState(initialAuth.user); // null means not logged in
+  const [tokens, setTokens] = useState(initialAuth.tokens);
   const [activeTab, setActiveTab] = useState('extension');
   const [selectedThreat, setSelectedThreat] = useState(null);
 
-  const handleLogin = (userData) => {
+  useEffect(() => {
+    setApiSession(tokens);
+    setApiSessionUpdateHandler((nextTokens) => {
+      setTokens(nextTokens);
+      if (user) {
+        localStorage.setItem('phishx_auth', JSON.stringify({ user, ...nextTokens }));
+      }
+    });
+  }, [tokens, user]);
+
+  const handleLogin = ({ user: userData, accessToken, refreshToken }) => {
     setUser(userData);
+    const nextTokens = { accessToken, refreshToken };
+    setTokens(nextTokens);
+    setApiSession(nextTokens);
+    localStorage.setItem('phishx_auth', JSON.stringify({ user: userData, accessToken, refreshToken }));
     // If admin logs in, show admin dashboard default. If user, show extension.
     setActiveTab(userData.role === 'admin' ? 'dashboard' : 'extension');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (tokens.refreshToken) {
+      try {
+        await apiFetch('/api/v1/auth/logout', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+        }, { retryOn401: false });
+      } catch {
+        // Ignore logout API errors during local signout.
+      }
+    }
     setUser(null);
+    const empty = { accessToken: null, refreshToken: null };
+    setTokens(empty);
+    setApiSession(empty);
+    localStorage.removeItem('phishx_auth');
     setActiveTab('extension');
   };
 
@@ -107,7 +155,7 @@ function App() {
               </div>
               <div className="browser-content">
                 <div className="extension-wrapper">
-                  <BrowserExtension />
+                  <BrowserExtension onThreatDetected={handleSelectThreat} />
                 </div>
               </div>
             </div>

@@ -1,15 +1,62 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../lib/api';
 import './BrowserExtension.css';
 
-const BrowserExtension = () => {
-    const [scanState, setScanState] = useState('idle'); // idle, scanning, analyzing, detecting, storing, complete
+const BrowserExtension = ({ onThreatDetected }) => {
+    const [scanState, setScanState] = useState('idle'); // idle, scanning, analyzing, complete
+    const [mode, setMode] = useState('url');
+    const [url, setUrl] = useState('');
+    const [subject, setSubject] = useState('');
+    const [body, setBody] = useState('');
+    const [result, setResult] = useState(null);
+    const [error, setError] = useState('');
 
-    const startScan = () => {
+    const startScan = async () => {
+        setError('');
+        setResult(null);
         setScanState('scanning');
-        setTimeout(() => setScanState('analyzing'), 1500);
-        setTimeout(() => setScanState('detecting'), 3000);
-        setTimeout(() => setScanState('storing'), 4500);
-        setTimeout(() => setScanState('complete'), 5500);
+        try {
+            const endpoint = mode === 'url' ? '/api/v1/url-analyze' : '/api/v1/email-analyze';
+            const payload = mode === 'url'
+                ? { url }
+                : { subject, body };
+            const res = await apiFetch(endpoint, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const json = await res.json();
+            if (!res.ok || !json?.data) {
+                setError(json?.message || 'Analysis failed.');
+                setScanState('idle');
+                return;
+            }
+            setResult(json.data);
+            setScanState('complete');
+            if (onThreatDetected) {
+                onThreatDetected({
+                    id: `LIVE-${Date.now()}`,
+                    target: mode === 'url' ? url : subject,
+                    brand: 'Unknown',
+                    severity: json.data.score >= 85 ? 'critical' : json.data.score >= 70 ? 'high' : json.data.score >= 40 ? 'medium' : 'low',
+                    score: json.data.score,
+                    ip: 'N/A',
+                    location: 'N/A',
+                    type: mode === 'url' ? 'URL Threat' : 'Email Threat',
+                    status: json.data.status === 'phishing' ? 'Blocked' : json.data.status === 'suspicious' ? 'Quarantined' : 'Allowed',
+                    urlAnalysis: [],
+                    aiReasoning: (json.data.reasons || []).map((reason) => ({
+                        score: `${json.data.score}%`,
+                        state: json.data.score >= 70 ? 'danger' : 'warning',
+                        title: 'Detection Signal',
+                        desc: reason,
+                    })),
+                });
+            }
+        } catch {
+            setError('Could not connect to analysis API.');
+            setScanState('idle');
+        }
     };
 
     return (
@@ -39,16 +86,49 @@ const BrowserExtension = () => {
                     </div>
                     <div className="scan-text">
                         <h3>Ready to Scan</h3>
-                        <p>Analyze this page for phishing threats</p>
+                        <p>Analyze real URL or email content for phishing threats</p>
                     </div>
-                    <button className="btn-primary scan-btn" onClick={startScan}>
-                        Scan URL / Email
-                    </button>
+                    <div style={{ width: '100%', display: 'grid', gap: '10px' }}>
+                        <div className="role-selector">
+                            <button type="button" className={`role-btn ${mode === 'url' ? 'active' : ''}`} onClick={() => setMode('url')}>URL</button>
+                            <button type="button" className={`role-btn ${mode === 'email' ? 'active' : ''}`} onClick={() => setMode('email')}>Email</button>
+                        </div>
+                        {mode === 'url' ? (
+                            <input
+                                className="form-input"
+                                type="url"
+                                placeholder="https://example.com/login"
+                                value={url}
+                                onChange={(e) => setUrl(e.target.value)}
+                            />
+                        ) : (
+                            <>
+                                <input
+                                    className="form-input"
+                                    type="text"
+                                    placeholder="Email subject"
+                                    value={subject}
+                                    onChange={(e) => setSubject(e.target.value)}
+                                />
+                                <textarea
+                                    className="form-input"
+                                    rows={4}
+                                    placeholder="Email body"
+                                    value={body}
+                                    onChange={(e) => setBody(e.target.value)}
+                                />
+                            </>
+                        )}
+                        {error && <p style={{ color: '#ff5f7a' }}>{error}</p>}
+                        <button className="btn-primary scan-btn" onClick={startScan}>
+                            Scan {mode === 'url' ? 'URL' : 'Email'}
+                        </button>
+                    </div>
                 </div>
             )}
 
             {/* Active Scan States */}
-            {['scanning', 'analyzing', 'detecting', 'storing'].includes(scanState) && (
+            {['scanning'].includes(scanState) && (
                 <div className="scan-flow-section active-scan">
                     <div className="scanning-animation">
                         <div className="scanner-target">
@@ -59,9 +139,6 @@ const BrowserExtension = () => {
                     </div>
                     <h3 className="scan-status-text">
                         {scanState === 'scanning' && 'Scanning URL / Email...'}
-                        {scanState === 'analyzing' && 'Analyzing URL using ML Model...'}
-                        {scanState === 'detecting' && 'Detecting Suspicious Patterns...'}
-                        {scanState === 'storing' && 'Storing Incident Data...'}
                     </h3>
                     <div className="progress-bar-container">
                         <div className={`progress-filled state-${scanState}`}></div>
@@ -89,7 +166,7 @@ const BrowserExtension = () => {
                                 />
                             </svg>
                             <div className="risk-score">
-                                <h2>92%</h2>
+                                <h2>{result?.score ?? 0}%</h2>
                                 <span>Threat Score</span>
                             </div>
                         </div>
@@ -104,31 +181,21 @@ const BrowserExtension = () => {
                             <h4>AI Analysis Reasoning</h4>
                         </div>
                         <ul className="reasoning-list">
-                            <li>
-                                <span className="icon warn">!</span>
-                                <span>Domain similarity detected (paypal-login-secure.com)</span>
-                            </li>
-                            <li>
-                                <span className="icon danger">✕</span>
-                                <span>Fake login form structure identified</span>
-                            </li>
-                            <li>
-                                <span className="icon info">i</span>
-                                <span>Domain registered &lt; 24 hours ago</span>
-                            </li>
+                            {(result?.reasons || []).map((reason, idx) => (
+                                <li key={idx}>
+                                    <span className="icon info">i</span>
+                                    <span>{reason}</span>
+                                </li>
+                            ))}
                         </ul>
                     </div>
 
                     {/* Actions */}
                     <div className="ext-actions fade-in delay-2">
-                        <button className="btn-primary" onClick={() => alert("Navigating back to a safe page...")}>
+                        <button className="btn-primary" onClick={() => { setScanState('idle'); setResult(null); }}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-                            Go Back to Safety
+                            New Scan
                         </button>
-                        <div className="secondary-actions">
-                            <button className="btn-text" onClick={() => alert("Proceeding to dangerous site at your own risk.")}>Proceed Anyway</button>
-                            <button className="btn-text danger-text" onClick={() => alert("Reporting Suspicious Link to Sentinel AI...")}>Report Suspicious Link</button>
-                        </div>
                     </div>
                 </>
             )}

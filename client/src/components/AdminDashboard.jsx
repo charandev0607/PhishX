@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell
@@ -6,7 +6,7 @@ import {
 import {
     ShieldAlert, ShieldCheck, Activity, Users, Settings, Bell, Search, TrendingUp, AlertTriangle, FileText, DownloadCloud
 } from 'lucide-react';
-import { mockThreatFeed, threatTrendData, riskDistributionData, categoryData } from '../data/mockData';
+import { apiFetch } from '../lib/api';
 import './AdminDashboard.css';
 
 // Keep chart tooltip component stable across renders for lint + performance.
@@ -27,6 +27,100 @@ const CustomTooltip = ({ active, payload, label }) => {
 const AdminDashboard = ({ onSelectThreat }) => {
     const [activeFilter, setActiveFilter] = useState('24h');
     const [activeNav, setActiveNav] = useState('overview');
+    const [incidents, setIncidents] = useState([]);
+    const [systemHealth, setSystemHealth] = useState(null);
+
+    useEffect(() => {
+        const loadDashboardData = async () => {
+            try {
+                const [incidentsResp, healthResp] = await Promise.all([
+                    apiFetch('/api/v1/incidents?limit=200'),
+                    apiFetch('/api/v1/system/health'),
+                ]);
+
+                if (incidentsResp.ok) {
+                    const json = await incidentsResp.json();
+                    setIncidents(json?.data?.items ?? []);
+                }
+
+                if (healthResp.ok) {
+                    const json = await healthResp.json();
+                    setSystemHealth(json?.data ?? null);
+                }
+            } catch {
+                setIncidents([]);
+                setSystemHealth(null);
+            }
+        };
+
+        loadDashboardData();
+    }, []);
+
+    const mappedThreatFeed = useMemo(() => {
+        return incidents.map((incident) => {
+            const date = new Date(incident.createdAt);
+            const severity = incident.score >= 85 ? 'critical' : incident.score >= 70 ? 'high' : incident.score >= 40 ? 'medium' : 'low';
+            const status = incident.status === 'phishing' ? 'Blocked' : incident.status === 'suspicious' ? 'Quarantined' : 'Allowed';
+            return {
+                id: incident._id,
+                time: Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleTimeString(),
+                type: incident.type === 'url' ? 'URL Threat' : 'Email Threat',
+                target: incident.input,
+                brand: 'Unknown',
+                status,
+                severity,
+                score: incident.score,
+                ip: incident.metadata?.ip || 'N/A',
+                location: incident.metadata?.geo || 'N/A',
+                urlAnalysis: [],
+                aiReasoning: (incident.reasons || []).map((reason) => ({
+                    score: `${incident.score}%`,
+                    state: severity === 'critical' || severity === 'high' ? 'danger' : 'warning',
+                    title: 'Detection Signal',
+                    desc: reason,
+                })),
+            };
+        });
+    }, [incidents]);
+
+    const threatTrendData = useMemo(() => {
+        const byHour = new Map();
+        mappedThreatFeed.forEach((item) => {
+            const hour = item.time !== 'N/A' ? item.time.slice(0, 2) : '00';
+            byHour.set(hour, (byHour.get(hour) || 0) + 1);
+        });
+        return Array.from(byHour.entries())
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([hour, threats]) => ({ time: `${hour}:00`, threats }));
+    }, [mappedThreatFeed]);
+
+    const riskDistributionData = useMemo(() => {
+        const counts = { Low: 0, Medium: 0, High: 0, Critical: 0 };
+        mappedThreatFeed.forEach((item) => {
+            if (item.severity === 'critical') counts.Critical += 1;
+            else if (item.severity === 'high') counts.High += 1;
+            else if (item.severity === 'medium') counts.Medium += 1;
+            else counts.Low += 1;
+        });
+        return [
+            { name: 'Low', value: counts.Low, color: '#00ff88' },
+            { name: 'Medium', value: counts.Medium, color: '#0066ff' },
+            { name: 'High', value: counts.High, color: '#ffb800' },
+            { name: 'Critical', value: counts.Critical, color: '#ff0055' },
+        ];
+    }, [mappedThreatFeed]);
+
+    const categoryData = useMemo(() => {
+        const counts = { URL: 0, Email: 0 };
+        mappedThreatFeed.forEach((item) => {
+            if (item.type === 'URL Threat') counts.URL += 1;
+            else counts.Email += 1;
+        });
+        return [
+            { name: 'URL Threats', value: counts.URL, color: '#9d00ff' },
+            { name: 'Email Threats', value: counts.Email, color: '#00f3ff' },
+        ];
+    }, [mappedThreatFeed]);
 
     return (
         <div className="dashboard-layout">
@@ -44,7 +138,7 @@ const AdminDashboard = ({ onSelectThreat }) => {
                     </button>
                     <button className={`nav-item ${activeNav === 'threats' ? 'active' : ''}`} onClick={() => setActiveNav('threats')}>
                         <ShieldAlert size={20} /> Monitor Threat Feed
-                        <span className="nav-badge pulse-badge">{mockThreatFeed.filter(t => t.status === "Blocked").length}</span>
+                        <span className="nav-badge pulse-badge">{mappedThreatFeed.filter(t => t.status === "Blocked").length}</span>
                     </button>
                     <button className={`nav-item ${activeNav === 'reports' ? 'active' : ''}`} onClick={() => setActiveNav('reports')}>
                         <FileText size={20} /> View Incident Reports
@@ -66,7 +160,7 @@ const AdminDashboard = ({ onSelectThreat }) => {
                         <span className="status-good">Optimal</span>
                     </div>
                     <div className="progress-bg"><div className="progress-fill" style={{ width: '98%' }}></div></div>
-                    <p>AI Core: Online • Latency: 12ms</p>
+                    <p>AI Core: Online • Latency: {systemHealth?.responseTime ?? 'N/A'}ms</p>
                 </div>
             </aside>
 
@@ -80,11 +174,11 @@ const AdminDashboard = ({ onSelectThreat }) => {
                     </div>
 
                     <div className="topbar-actions">
-                        <div className="notification-icon" onClick={() => alert("You have 3 new security alerts.")}>
+                        <div className="notification-icon">
                             <Bell size={24} />
                             <div className="indicator"></div>
                         </div>
-                        <div className="admin-profile" onClick={() => alert("Opening Admin Profile Settings...")}>
+                        <div className="admin-profile">
                             <img src="https://i.pravatar.cc/100?img=33" alt="Admin" className="avatar" />
                             <div className="profile-info">
                                 <span className="name">A. Security</span>
@@ -101,7 +195,7 @@ const AdminDashboard = ({ onSelectThreat }) => {
                             <h3>Total Threats (24h)</h3>
                             <ShieldAlert size={20} />
                         </div>
-                        <div className="stat-value">24,592</div>
+                        <div className="stat-value">{mappedThreatFeed.length}</div>
                         <div className="stat-trend positive">
                             ↑ +12% vs yesterday
                         </div>
@@ -112,7 +206,7 @@ const AdminDashboard = ({ onSelectThreat }) => {
                             <h3>Phishing Blocked</h3>
                             <AlertTriangle size={20} />
                         </div>
-                        <div className="stat-value">8,104</div>
+                        <div className="stat-value">{mappedThreatFeed.filter(t => t.status === 'Blocked').length}</div>
                         <div className="stat-trend negative">
                             ↑ +4% escalation
                         </div>
@@ -123,7 +217,11 @@ const AdminDashboard = ({ onSelectThreat }) => {
                             <h3>Detection Accuracy</h3>
                             <ShieldCheck size={20} />
                         </div>
-                        <div className="stat-value">99.98%</div>
+                        <div className="stat-value">
+                            {mappedThreatFeed.length > 0
+                                ? `${Math.round((mappedThreatFeed.filter(t => t.status !== 'Allowed').length / mappedThreatFeed.length) * 100)}%`
+                                : 'N/A'}
+                        </div>
                         <div className="stat-trend positive">
                             ↑ +0.01% optimized
                         </div>
@@ -248,7 +346,7 @@ const AdminDashboard = ({ onSelectThreat }) => {
                             <span className="live-indicator">LIVE</span>
                         </div>
                         <div className="feed-list">
-                            {mockThreatFeed.map(threat => (
+                            {mappedThreatFeed.map(threat => (
                                 <div
                                     key={threat.id}
                                     className={`feed-item ${threat.severity}`}
@@ -277,7 +375,7 @@ const AdminDashboard = ({ onSelectThreat }) => {
                         <div className="reports-view fade-in glass-panel" style={{ width: '100%', padding: '30px' }}>
                             <div className="section-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between' }}>
                                 <h3>Incident Reports</h3>
-                                <button className="btn-primary" onClick={() => alert("Generating full Incident Report PDF...")}>
+                                <button className="btn-primary" type="button">
                                     <DownloadCloud size={18} style={{marginRight: '8px'}} /> Generate Reports
                                 </button>
                             </div>
@@ -293,7 +391,7 @@ const AdminDashboard = ({ onSelectThreat }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {mockThreatFeed.map(threat => (
+                                    {mappedThreatFeed.map(threat => (
                                         <tr key={threat.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }} onClick={() => onSelectThreat && onSelectThreat(threat)}>
                                             <td style={{ padding: '12px 8px', color: 'var(--accent-cyan)' }}>{threat.id}</td>
                                             <td style={{ padding: '12px 8px' }}>{threat.time}</td>
@@ -303,7 +401,7 @@ const AdminDashboard = ({ onSelectThreat }) => {
                                                 {threat.severity.toUpperCase()}
                                             </td>
                                             <td style={{ padding: '12px 8px' }}>
-                                                <button className="btn-text" style={{ padding: 0 }} onClick={(e) => { e.stopPropagation(); alert(`Downloading report for ${threat.id}`); }}>
+                                                <button className="btn-text" style={{ padding: 0 }} type="button" onClick={(e) => { e.stopPropagation(); }}>
                                                     <FileText size={16} /> Export
                                                 </button>
                                             </td>

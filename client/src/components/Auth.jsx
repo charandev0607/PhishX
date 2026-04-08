@@ -2,18 +2,39 @@ import React, { useState } from 'react';
 import './Auth.css';
 
 const Auth = ({ onLogin }) => {
-    const [isLogin, setIsLogin] = useState(true);
-    const [role, setRole] = useState('user'); // 'user' or 'admin'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Simulate authentication
-        if (email && password) {
-            onLogin({ email, role });
-        } else {
-            alert('Please enter both email and password.');
+        setError('');
+        if (!email || !password) {
+            setError('Please enter both email and password.');
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            const res = await fetch('/api/v1/auth/login', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json?.data?.user || !json?.data?.accessToken || !json?.data?.refreshToken) {
+                setError(json?.message || 'Login failed.');
+                return;
+            }
+            onLogin({
+                user: json.data.user,
+                accessToken: json.data.accessToken,
+                refreshToken: json.data.refreshToken,
+            });
+        } catch {
+            setError('Unable to reach backend authentication service.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -25,30 +46,10 @@ const Auth = ({ onLogin }) => {
                         <div className="auth-pulse"></div>
                         <h2>Sentinel AI</h2>
                     </div>
-                    <p>{isLogin ? 'Sign in to your account' : 'Create an account to continue'}</p>
+                    <p>Sign in to your account</p>
                 </div>
 
                 <form className="auth-form" onSubmit={handleSubmit}>
-                    <div className="form-group">
-                        <label>Account Role</label>
-                        <div className="role-selector">
-                            <button 
-                                type="button" 
-                                className={`role-btn ${role === 'user' ? 'active' : ''}`}
-                                onClick={() => setRole('user')}
-                            >
-                                End User
-                            </button>
-                            <button 
-                                type="button" 
-                                className={`role-btn ${role === 'admin' ? 'active' : ''}`}
-                                onClick={() => setRole('admin')}
-                            >
-                                Security Admin
-                            </button>
-                        </div>
-                    </div>
-
                     <div className="form-group">
                         <label>Email Address</label>
                         <input 
@@ -73,17 +74,11 @@ const Auth = ({ onLogin }) => {
                         />
                     </div>
 
-                    <button type="submit" className="auth-btn">
-                        {isLogin ? 'Sign In' : 'Sign Up'}
+                    {error && <p style={{ color: '#ff5f7a', marginTop: '8px' }}>{error}</p>}
+                    <button type="submit" className="auth-btn" disabled={isSubmitting}>
+                        {isSubmitting ? 'Signing In...' : 'Sign In'}
                     </button>
                 </form>
-
-                <div className="auth-toggle">
-                    {isLogin ? "Don't have an account?" : "Already have an account?"}
-                    <button type="button" onClick={() => setIsLogin(!isLogin)}>
-                        {isLogin ? 'Sign Up' : 'Sign In'}
-                    </button>
-                </div>
             </div>
         </div>
     );

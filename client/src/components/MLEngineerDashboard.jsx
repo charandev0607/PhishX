@@ -1,34 +1,51 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
 } from 'recharts';
 import { Database, TrendingUp, RefreshCw, BarChart2, Shield, Activity, Share2 } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 import './MLEngineerDashboard.css';
-
-// Mock Data for ML Engineer View
-const modelPerformanceData = [
-    { epoch: '1', accuracy: 85, loss: 0.15 },
-    { epoch: '2', accuracy: 88, loss: 0.12 },
-    { epoch: '3', accuracy: 92, loss: 0.08 },
-    { epoch: '4', accuracy: 95, loss: 0.05 },
-    { epoch: '5', accuracy: 96, loss: 0.04 },
-    { epoch: '6', accuracy: 97, loss: 0.03 },
-    { epoch: '7', accuracy: 99.1, loss: 0.01 },
-];
-
-const blockedStatsData = [
-     { name: 'Mon', phishing: 1200, malware: 300, spam: 800 },
-     { name: 'Tue', phishing: 1500, malware: 450, spam: 900 },
-     { name: 'Wed', phishing: 1100, malware: 200, spam: 750 },
-     { name: 'Thu', phishing: 1800, malware: 600, spam: 1100 },
-     { name: 'Fri', phishing: 2200, malware: 800, spam: 1300 },
-     { name: 'Sat', phishing: 900,  malware: 150, spam: 500 },
-     { name: 'Sun', phishing: 800,  malware: 100, spam: 400 },
-];
 
 const MLEngineerDashboard = () => {
     const [isUpdatingModels, setIsUpdatingModels] = useState(false);
     const [activeTab, setActiveTab] = useState('threat-intel');
+    const [metricsRows, setMetricsRows] = useState([]);
+
+    useEffect(() => {
+        const loadMetrics = async () => {
+            try {
+                const resp = await apiFetch('/api/v1/ml/metrics?days=14');
+                if (!resp.ok) return;
+                const json = await resp.json();
+                setMetricsRows(json?.data?.rows ?? []);
+            } catch {
+                setMetricsRows([]);
+            }
+        };
+        loadMetrics();
+    }, []);
+
+    const modelPerformanceData = useMemo(() => {
+        return metricsRows.map((row, idx) => {
+            const total = (row.truePositives || 0) + (row.trueNegatives || 0) + (row.falsePositives || 0) + (row.falseNegatives || 0);
+            const accuracy = total > 0 ? ((row.truePositives || 0) + (row.trueNegatives || 0)) / total : 0;
+            const loss = 1 - accuracy;
+            return {
+                epoch: String(idx + 1),
+                accuracy: Number((accuracy * 100).toFixed(2)),
+                loss: Number(loss.toFixed(4)),
+            };
+        });
+    }, [metricsRows]);
+
+    const blockedStatsData = useMemo(() => {
+        return metricsRows.map((row) => ({
+            name: row.date?.slice(5) || 'N/A',
+            phishing: row.byType?.url?.feedbackCount || 0,
+            malware: row.falsePositives || 0,
+            spam: row.byType?.email?.feedbackCount || 0,
+        }));
+    }, [metricsRows]);
 
     const handleUpdateIntelligence = () => {
         setIsUpdatingModels(true);
@@ -86,16 +103,16 @@ const MLEngineerDashboard = () => {
                                         <h3>New Incident Data</h3>
                                         <Database size={20} className="magenta-icon" />
                                     </div>
-                                    <div className="stat-value">12,450</div>
-                                    <p className="description">Unprocessed records ready for training</p>
+                                    <div className="stat-value">{metricsRows.reduce((sum, r) => sum + (r.feedbackCount || 0), 0)}</div>
+                                    <p className="description">Validated feedback records available for retraining</p>
                                 </div>
                                 <div className="stat-card glass-panel-light">
                                     <div className="stat-header">
                                         <h3>Current Model Version</h3>
                                         <Share2 size={20} className="cyan-icon" />
                                     </div>
-                                    <div className="stat-value">Sentinel-v4.2</div>
-                                    <p className="description">Last updated: 4 hours ago</p>
+                                    <div className="stat-value">Production</div>
+                                    <p className="description">Last metric update: {metricsRows.at(-1)?.updatedAt ? new Date(metricsRows.at(-1).updatedAt).toLocaleString() : 'N/A'}</p>
                                 </div>
                             </div>
 

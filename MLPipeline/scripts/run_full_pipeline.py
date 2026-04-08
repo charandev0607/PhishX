@@ -55,32 +55,18 @@ def main() -> None:
             cwd=repo_root,
         )
 
-    # 2) Ensure email/webpage datasets exist; generate starter data if missing
+    # 2) Ensure email/webpage datasets exist
     email_train = ds_dir / "email_train.jsonl"
     email_eval = ds_dir / "email_eval.jsonl"
     web_train = ds_dir / "webpage_train.jsonl"
     web_eval = ds_dir / "webpage_eval.jsonl"
 
-    if not all(file_has_lines(p, 1) for p in [email_train, email_eval, web_train, web_eval]):
-        print("[INFO] Missing email/webpage datasets; generating starter synthetic datasets.")
-        run([sys.executable, "MLPipeline/scripts/generate_synthetic_datasets.py"], cwd=repo_root)
-        # Rebuild URL dataset again because synthetic generator writes URL files too.
-        if not args.skip_build_url:
-            run(
-                [
-                    sys.executable,
-                    "MLPipeline/scripts/build_url_dataset.py",
-                    "--train_phishing",
-                    str(args.train_phishing),
-                    "--train_legit",
-                    str(args.train_legit),
-                    "--eval_total",
-                    str(args.eval_total),
-                    "--eval_safe_ratio",
-                    str(args.eval_safe_ratio),
-                ],
-                cwd=repo_root,
-            )
+    missing = [str(p) for p in [email_train, email_eval, web_train, web_eval] if not file_has_lines(p, 1)]
+    if missing:
+        raise SystemExit(
+            "Missing required real datasets; refusing synthetic fallback. "
+            f"Populate these files first: {', '.join(missing)}"
+        )
 
     # 3) Train all models
     run([sys.executable, "MLPipeline/scripts/train_all.py"], cwd=repo_root)

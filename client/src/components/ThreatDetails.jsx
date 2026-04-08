@@ -3,27 +3,25 @@ import { ArrowLeft, FileText, AlertOctagon, Info, Code, MapPin, Search, ShieldCh
 import './ThreatDetails.css';
 
 const ThreatDetails = ({ threat, onBack }) => {
-  // Use mock data if no threat passed
-  const displayThreat = threat || {
-    id: "TR-9942-X",
-    target: "paypal-security-update-verify.com/login",
-    brand: "PayPal",
-    severity: "critical",
-    score: 94,
-    ip: "192.168.1.104",
-    location: "RU",
-    urlAnalysis: [
-      { part: "Protocol", value: "https://", state: "safe", note: "" },
-      { part: "Subdomain", value: "paypal-security-update", state: "danger", note: "Brand impersonation" },
-      { part: "Domain", value: "verify.com", state: "warning", note: "Deceptive root" },
-      { part: "Path", value: "/login", state: "default", note: "" }
-    ],
-    aiReasoning: [
-      { score: "98%", state: "danger", title: "Visual Similarity", desc: "CSS and layout matches PayPal login identical to 98.4% precision." },
-      { score: "92%", state: "danger", title: "Heuristic Lexical Analysis", desc: "URL contains suspicious brand words 'security', 'update', 'verify'." },
-      { score: "85%", state: "warning", title: "Form Action Anomalies", desc: "Login form submits POST to an obfuscated external PHP script." }
-    ]
-  };
+  if (!threat) {
+    return (
+      <div className="threat-layout">
+        <header className="threat-header glass-panel">
+          <div className="threat-title">
+            <button className="back-btn" onClick={onBack}>
+              <ArrowLeft size={20} />
+            </button>
+            <div className="title-info">
+              <h2>Threat Forensic Report</h2>
+              <span className="threat-id">No threat selected</span>
+            </div>
+          </div>
+        </header>
+      </div>
+    );
+  }
+
+  const displayThreat = threat;
 
   const isCritical = displayThreat.severity === 'critical';
 
@@ -47,11 +45,11 @@ const ThreatDetails = ({ threat, onBack }) => {
           </div>
         </div>
         <div className="threat-actions">
-          <button className="btn-outline" onClick={() => alert("Generating Forensic PDF Report...")}>
+          <button className="btn-outline" type="button">
             <FileText size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
             Export PDF
           </button>
-          <button className="btn-danger" onClick={() => alert(`Domain ${displayThreat.target} Quarantined successfully.`)}>
+          <button className="btn-danger" type="button">
             <AlertOctagon size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
             Quarantine Domain
           </button>
@@ -141,7 +139,7 @@ const ThreatDetails = ({ threat, onBack }) => {
             </div>
 
             <div className="reasoning-grid">
-              {displayThreat.aiReasoning.map((reason, i) => (
+              {(displayThreat.aiReasoning || []).map((reason, i) => (
                 <div key={i} className={`reason-item glass-panel-light highlight-${reason.state}`}>
                   <div className="r-score">{reason.score}</div>
                   <div className="r-detail">
@@ -163,7 +161,7 @@ const ThreatDetails = ({ threat, onBack }) => {
               <h3>URL Forensic Breakdown</h3>
             </div>
             <div className="url-breakdown">
-              {displayThreat.urlAnalysis.map((part, i) => (
+              {(displayThreat.urlAnalysis || []).map((part, i) => (
                 <div key={i} className={`url-part ${part.state}`}>
                   <span className="part-label">{part.part}</span>
                   <span className="part-value">{part.value}</span>

@@ -25,3 +25,8 @@
 - Metrics: {'precision': 0.9991845610220168, 'recall': 0.9802666666666666, 'f1': 0.9896352133530758, 'auc': 0.9948514844444444}
 - Notes: URL lexical/structural logistic regression baseline
 
+## 20260408T122148
+- Created: 2026-04-08T12:21:48.974156+00:00
+- Metrics: {'precision': 0.9989151071331706, 'recall': 0.9821333333333333, 'f1': 0.9904531397068711, 'auc': 0.9962603022222223}
+- Notes: URL lexical/structural logistic regression baseline
+
