@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../lib/api';
 import './BrowserExtension.css';
-import { analyzeEmail, analyzeUrl } from '../services/api';
 
 const BrowserExtension = ({ onThreatDetected }) => {
     const [scanState, setScanState] = useState('idle'); // idle, scanning, analyzing, complete
@@ -68,59 +67,12 @@ const BrowserExtension = ({ onThreatDetected }) => {
                     <span>Sentinel AI</span>
                 </div>
                 {result && (
-                    <div className={`ext-status ${result.indicatorClass}`}>
+                    <div className="ext-status danger">
                         <span className="status-dot"></span>
-                        {result.statusLabel}
+                        {result.status || 'Analysis Complete'}
                     </div>
                 )}
             </div>
-
-            <div className="analysis-mode-toggle">
-                <button className={`mode-btn ${mode === 'url' ? 'active' : ''}`} onClick={() => setMode('url')}>
-                    URL Scan
-                </button>
-                <button className={`mode-btn ${mode === 'email' ? 'active' : ''}`} onClick={() => setMode('email')}>
-                    Email Scan
-                </button>
-            </div>
-
-            {mode === 'url' ? (
-                <div className="scan-input-group">
-                    <label>Manual URL Paste & Scan</label>
-                    <input
-                        className="scan-input"
-                        type="url"
-                        value={urlInput}
-                        onChange={(event) => setUrlInput(event.target.value)}
-                        placeholder="https://example.com"
-                    />
-                </div>
-            ) : (
-                <div className="scan-input-group">
-                    <label>Email Subject</label>
-                    <input
-                        className="scan-input"
-                        type="text"
-                        value={emailSubject}
-                        onChange={(event) => setEmailSubject(event.target.value)}
-                        placeholder="Subject"
-                    />
-                    <label>Email Body</label>
-                    <textarea
-                        className="scan-input"
-                        rows={4}
-                        value={emailBody}
-                        onChange={(event) => setEmailBody(event.target.value)}
-                        placeholder="Paste email content"
-                    />
-                </div>
-            )}
-
-            {latestAlert ? (
-                <div className="realtime-popup">
-                    <strong>Real-Time Alert:</strong> {latestAlert.detail}
-                </div>
-            ) : null}
 
             {(scanState === 'idle' || scanState === 'complete') && (
                 <div className="scan-flow-section">
@@ -196,14 +148,14 @@ const BrowserExtension = ({ onThreatDetected }) => {
                 <>
                     <div className="risk-meter-section fade-in">
                         <div className="risk-circle">
-                            <svg viewBox="0 0 100 100" className={`circular-chart ${result.indicatorClass}`}>
+                            <svg viewBox="0 0 100 100" className="circular-chart danger">
                                 <path className="circle-bg"
                                     d="M18 2.0845
                         a 15.9155 15.9155 0 0 1 0 31.831
                         a 15.9155 15.9155 0 0 1 0 -31.831"
                                 />
                                 <path className="circle"
-                                    strokeDasharray={`${result.score}, 100`}
+                                    strokeDasharray={`${result.score || 0}, 100`}
                                     d="M18 2.0845
                         a 15.9155 15.9155 0 0 1 0 31.831
                         a 15.9155 15.9155 0 0 1 0 -31.831"
@@ -221,7 +173,7 @@ const BrowserExtension = ({ onThreatDetected }) => {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                             </svg>
-                            <h4>Threat Details Panel</h4>
+                            <h4>AI Analysis Reasoning</h4>
                         </div>
                         <ul className="reasoning-list">
                             {(result?.reasons || []).map((reason, idx) => (
@@ -232,7 +184,7 @@ const BrowserExtension = ({ onThreatDetected }) => {
                             ))}
                         </ul>
                         <p style={{ marginTop: '12px', color: 'var(--text-secondary)' }}>
-                            Recommended Action: <strong style={{ color: 'var(--text-primary)' }}>{result.recommendedAction}</strong>
+                            Recommended Action: <strong style={{ color: 'var(--text-primary)' }}>Review and quarantine if suspicious.</strong>
                         </p>
                     </div>
 

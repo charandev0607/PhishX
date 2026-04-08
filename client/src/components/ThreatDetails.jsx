@@ -161,7 +161,7 @@ const ThreatDetails = ({ threat, onBack }) => {
             </div>
 
             <div className="reasoning-grid">
-              {(displayThreat.aiReasoning || []).map((reason, i) => (
+              {normalizedReasoning.map((reason, i) => (
                 <div key={i} className={`reason-item glass-panel-light highlight-${reason.state}`}>
                   <div className="r-score">{reason.score}</div>
                   <div className="r-detail">
@@ -183,7 +183,7 @@ const ThreatDetails = ({ threat, onBack }) => {
               <h3>URL Forensic Breakdown</h3>
             </div>
             <div className="url-breakdown">
-              {(displayThreat.urlAnalysis || []).map((part, i) => (
+              {normalizedUrlAnalysis.map((part, i) => (
                 <div key={i} className={`url-part ${part.state}`}>
                   <span className="part-label">{part.part}</span>
                   <span className="part-value">{part.value}</span>

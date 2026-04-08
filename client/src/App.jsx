@@ -1,24 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Monitor, LayoutDashboard, Search, Cpu, LogOut } from 'lucide-react';
+import { Monitor, LayoutDashboard, Cpu, LogOut, ShieldAlert } from 'lucide-react';
 import './App.css';
 import { apiFetch, setApiSession, setApiSessionUpdateHandler } from './lib/api';
-
-// Components
 import BrowserExtension from './components/BrowserExtension';
 import AdminDashboard from './components/AdminDashboard';
 import ThreatDetails from './components/ThreatDetails';
 import MLEngineerDashboard from './components/MLEngineerDashboard';
 import Auth from './components/Auth';
-import {
-  SOCKET_BASE,
-  clearAuth,
-  getPollEvents,
-  getStoredAuth,
-  getSystemHealth,
-  logout,
-} from './services/api';
-
-const MAX_ALERTS = 8;
 
 function App() {
   const initialAuth = (() => {
@@ -32,24 +20,16 @@ function App() {
           tokens: { accessToken: parsed.accessToken, refreshToken: parsed.refreshToken },
         };
       }
-      return { user: null, tokens: { accessToken: null, refreshToken: null } };
     } catch {
-      return { user: null, tokens: { accessToken: null, refreshToken: null } };
+      // no-op
     }
+    return { user: null, tokens: { accessToken: null, refreshToken: null } };
   })();
 
-  const [user, setUser] = useState(initialAuth.user); // null means not logged in
+  const [user, setUser] = useState(initialAuth.user);
   const [tokens, setTokens] = useState(initialAuth.tokens);
   const [activeTab, setActiveTab] = useState('extension');
   const [selectedThreat, setSelectedThreat] = useState(null);
-  const [realtimeAlerts, setRealtimeAlerts] = useState([]);
-  const [health, setHealth] = useState(null);
-  const socketRef = useRef(null);
-  const latestPollCursorRef = useRef(null);
-
-  const user = auth?.user || null;
-  const isAdmin = user?.role === 'admin';
-  const latestAlert = useMemo(() => realtimeAlerts[0] || null, [realtimeAlerts]);
 
   useEffect(() => {
     setApiSession(tokens);
@@ -67,7 +47,6 @@ function App() {
     setTokens(nextTokens);
     setApiSession(nextTokens);
     localStorage.setItem('phishx_auth', JSON.stringify({ user: userData, accessToken, refreshToken }));
-    // If admin logs in, show admin dashboard default. If user, show extension.
     setActiveTab(userData.role === 'admin' ? 'dashboard' : 'extension');
   };
 
@@ -80,11 +59,11 @@ function App() {
           body: JSON.stringify({ refreshToken: tokens.refreshToken }),
         }, { retryOn401: false });
       } catch {
-        // Ignore logout API errors during local signout.
+        // ignore
       }
     }
-    setUser(null);
     const empty = { accessToken: null, refreshToken: null };
+    setUser(null);
     setTokens(empty);
     setApiSession(empty);
     localStorage.removeItem('phishx_auth');
@@ -96,14 +75,14 @@ function App() {
     setActiveTab('details');
   };
 
-  const handleBackToDashboard = () => {
+  const handleBack = () => {
     setSelectedThreat(null);
     setActiveTab(user?.role === 'admin' ? 'dashboard' : 'extension');
   };
 
-  if (!user) {
-    return <Auth onLoginSuccess={handleLogin} />;
-  }
+  if (!user) return <Auth onLogin={handleLogin} />;
+
+  const isAdmin = user.role === 'admin';
 
   return (
     <div className="app-container">
@@ -121,13 +100,6 @@ function App() {
           </button>
         </div>
 
-        {latestAlert ? (
-          <div className="live-alert-badge">
-            <Bell size={16} />
-            <span>{latestAlert.title}: {latestAlert.detail}</span>
-          </div>
-        ) : null}
-        
         <div className="view-toggles">
           <button
             className={`tab-btn ${activeTab === 'extension' ? 'active' : ''}`}
@@ -136,10 +108,7 @@ function App() {
             Browser Extension UI
           </button>
           
-          <button
-            className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`}
-            onClick={() => setActiveTab('details')}
-          >
+          <button className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`} onClick={() => setActiveTab('details')}>
             <ShieldAlert size={16} /> Threat Details
           </button>
 
@@ -182,12 +151,7 @@ function App() {
         )}
 
         {activeTab === 'dashboard' && isAdmin && (
-          <AdminDashboard
-            onSelectThreat={handleSelectThreat}
-            liveAlerts={realtimeAlerts}
-            systemHealth={health}
-            userRole={user.role}
-          />
+          <AdminDashboard onSelectThreat={handleSelectThreat} />
         )}
 
         {activeTab === 'ml-engineer' && isAdmin && (
@@ -195,10 +159,7 @@ function App() {
         )}
 
         {activeTab === 'details' && (
-          <ThreatDetails
-            threat={selectedThreat || latestAlert?.payload || null}
-            onBack={handleBackToDashboard}
-          />
+          <ThreatDetails threat={selectedThreat} onBack={handleBack} />
         )}
       </div>
     </div>
