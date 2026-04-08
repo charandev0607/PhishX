@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, FileText, AlertOctagon, Info, Code, MapPin, Search, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, FileText, AlertOctagon, Code, MapPin, Search, ShieldCheck } from 'lucide-react';
 import './ThreatDetails.css';
 
 const ThreatDetails = ({ threat, onBack }) => {
@@ -22,6 +22,28 @@ const ThreatDetails = ({ threat, onBack }) => {
   }
 
   const displayThreat = threat;
+
+  const normalizedReasoning = (displayThreat.aiReasoning && displayThreat.aiReasoning.length
+    ? displayThreat.aiReasoning
+    : (displayThreat.reasons || []).map((reason, index) => ({
+        score: `${Math.max(55, (displayThreat.score || 50) - index * 7)}%`,
+        state: (displayThreat.score || 0) >= 70 ? 'danger' : 'warning',
+        title: `Detection Signal ${index + 1}`,
+        desc: reason,
+      }))
+  );
+
+  const normalizedUrlAnalysis = (displayThreat.urlAnalysis && displayThreat.urlAnalysis.length
+    ? displayThreat.urlAnalysis
+    : [
+        {
+          part: 'Target',
+          value: displayThreat.target || displayThreat.input || 'Unknown',
+          state: (displayThreat.score || 0) >= 70 ? 'danger' : 'warning',
+          note: displayThreat.status || 'analysis',
+        },
+      ]
+  );
 
   const isCritical = displayThreat.severity === 'critical';
 

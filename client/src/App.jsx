@@ -9,6 +9,16 @@ import AdminDashboard from './components/AdminDashboard';
 import ThreatDetails from './components/ThreatDetails';
 import MLEngineerDashboard from './components/MLEngineerDashboard';
 import Auth from './components/Auth';
+import {
+  SOCKET_BASE,
+  clearAuth,
+  getPollEvents,
+  getStoredAuth,
+  getSystemHealth,
+  logout,
+} from './services/api';
+
+const MAX_ALERTS = 8;
 
 function App() {
   const initialAuth = (() => {
@@ -32,6 +42,14 @@ function App() {
   const [tokens, setTokens] = useState(initialAuth.tokens);
   const [activeTab, setActiveTab] = useState('extension');
   const [selectedThreat, setSelectedThreat] = useState(null);
+  const [realtimeAlerts, setRealtimeAlerts] = useState([]);
+  const [health, setHealth] = useState(null);
+  const socketRef = useRef(null);
+  const latestPollCursorRef = useRef(null);
+
+  const user = auth?.user || null;
+  const isAdmin = user?.role === 'admin';
+  const latestAlert = useMemo(() => realtimeAlerts[0] || null, [realtimeAlerts]);
 
   useEffect(() => {
     setApiSession(tokens);
@@ -83,16 +101,12 @@ function App() {
     setActiveTab(user?.role === 'admin' ? 'dashboard' : 'extension');
   };
 
-  // If no user is logged in, show the Auth screen
   if (!user) {
-    return <Auth onLogin={handleLogin} />;
+    return <Auth onLoginSuccess={handleLogin} />;
   }
-
-  const isAdmin = user.role === 'admin';
 
   return (
     <div className="app-container">
-      {/* Controls Container */}
       <div className="demo-controls glass-panel">
         <div className="demo-header">
           <Monitor color="var(--accent-cyan)" size={24} />
@@ -106,6 +120,13 @@ function App() {
             <LogOut size={16} />
           </button>
         </div>
+
+        {latestAlert ? (
+          <div className="live-alert-badge">
+            <Bell size={16} />
+            <span>{latestAlert.title}: {latestAlert.detail}</span>
+          </div>
+        ) : null}
         
         <div className="view-toggles">
           <button
@@ -115,8 +136,14 @@ function App() {
             Browser Extension UI
           </button>
           
-          {/* Admin / ML Views strictly available to 'admin' role */}
-          {isAdmin && (
+          <button
+            className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`}
+            onClick={() => setActiveTab('details')}
+          >
+            <ShieldAlert size={16} /> Threat Details
+          </button>
+
+          {isAdmin ? (
             <>
               <button
                 className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
@@ -131,18 +158,10 @@ function App() {
                 <Cpu size={16} /> ML Engineer Dashboard
               </button>
             </>
-          )}
-
-          <button
-            className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`}
-            onClick={() => setActiveTab('details')}
-          >
-            Threat Details View
-          </button>
+          ) : null}
         </div>
       </div>
 
-      {/* Main View Area */}
       <div className="view-container">
         {activeTab === 'extension' && (
           <div className="extension-showcase">
@@ -163,7 +182,12 @@ function App() {
         )}
 
         {activeTab === 'dashboard' && isAdmin && (
-          <AdminDashboard onSelectThreat={handleSelectThreat} />
+          <AdminDashboard
+            onSelectThreat={handleSelectThreat}
+            liveAlerts={realtimeAlerts}
+            systemHealth={health}
+            userRole={user.role}
+          />
         )}
 
         {activeTab === 'ml-engineer' && isAdmin && (
@@ -171,7 +195,10 @@ function App() {
         )}
 
         {activeTab === 'details' && (
-          <ThreatDetails threat={selectedThreat} onBack={handleBackToDashboard} />
+          <ThreatDetails
+            threat={selectedThreat || latestAlert?.payload || null}
+            onBack={handleBackToDashboard}
+          />
         )}
       </div>
     </div>

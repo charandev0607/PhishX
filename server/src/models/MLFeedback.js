@@ -6,7 +6,6 @@ const mlFeedbackSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Incident",
       required: true,
-      index: true,
     },
     incidentType: {
       type: String,

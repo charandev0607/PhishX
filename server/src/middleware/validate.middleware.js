@@ -18,6 +18,10 @@ export const validate = (schema, property = "body") => (req, _res, next) => {
 };
 
 export const schemas = {
+  signup: Joi.object({
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    password: Joi.string().min(8).required(),
+  }),
   login: Joi.object({
     email: Joi.string().email({ tlds: { allow: false } }).required(),
     password: Joi.string().min(8).required(),
@@ -48,9 +52,20 @@ export const schemas = {
     sortBy: Joi.string().valid("createdAt", "score", "type", "status").default("createdAt"),
     order: Joi.string().valid("asc", "desc").default("desc"),
   }),
-  mlFeedback: Joi.object({
-    incidentId: Joi.string().required(),
-    groundTruthStatus: Joi.string().valid("safe", "suspicious", "phishing").required(),
-    notes: Joi.string().max(2000).allow(""),
+  adminUsersQuery: Joi.object({
+    role: Joi.string().valid("admin", "analyst").optional(),
+    search: Joi.string().max(200).optional(),
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(20),
   }),
+  adminUserRole: Joi.object({
+    role: Joi.string().valid("admin", "analyst").required(),
+  }),
+  adminPolicyUpdate: Joi.object({
+    autoBlockThreshold: Joi.number().min(0).max(100),
+    autoQuarantine: Joi.boolean(),
+    requireMfaForAdmins: Joi.boolean(),
+    notifyOnCritical: Joi.boolean(),
+    maxAlertsPerMinute: Joi.number().integer().min(1).max(1000),
+  }).min(1),
 };
