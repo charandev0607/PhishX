@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import ms from "ms";
 import { Session } from "../models/Session.js";
 
@@ -11,9 +12,11 @@ const getRefreshWindowMs = () => {
   return parsed;
 };
 
+const digestRefreshToken = (refreshToken) => crypto.createHash("sha256").update(refreshToken).digest("hex");
+
 export const createSession = async ({ userId, refreshToken, ip, userAgent }) => {
   const refreshWindowMs = getRefreshWindowMs();
-  const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+  const refreshTokenHash = await bcrypt.hash(digestRefreshToken(refreshToken), 10);
 
   return Session.create({
     userId,
@@ -33,7 +36,7 @@ export const findActiveSession = async (sessionId) => {
 };
 
 export const rotateSession = async ({ session, refreshToken }) => {
-  session.refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+  session.refreshTokenHash = await bcrypt.hash(digestRefreshToken(refreshToken), 10);
   session.expiresAt = new Date(Date.now() + getRefreshWindowMs());
   session.lastUsedAt = new Date();
   await session.save();
@@ -49,5 +52,9 @@ export const revokeSession = async (sessionId) => {
 };
 
 export const verifyRefreshToken = async ({ session, refreshToken }) => {
+  const tokenDigest = digestRefreshToken(refreshToken);
+  const digestMatch = await bcrypt.compare(tokenDigest, session.refreshTokenHash);
+  if (digestMatch) return true;
+  // Backward compatibility for sessions hashed before digesting.
   return bcrypt.compare(refreshToken, session.refreshTokenHash);
 };

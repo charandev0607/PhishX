@@ -71,7 +71,10 @@ export const analyzeUrlController = async (req, res, next) => {
     return res.status(201).json({
       success: true,
       message: "URL analyzed successfully",
-      data: result,
+      data: {
+        ...result,
+        incidentId: incident._id,
+      },
     });
   } catch (error) {
     return next(error);
@@ -138,7 +141,10 @@ export const analyzeEmailController = async (req, res, next) => {
     return res.status(201).json({
       success: true,
       message: "Email analyzed successfully",
-      data: result,
+      data: {
+        ...result,
+        incidentId: incident._id,
+      },
     });
   } catch (error) {
     return next(error);

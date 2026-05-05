@@ -7,6 +7,7 @@ import { Incident } from "../models/Incident.js";
 import { Policy } from "../models/Policy.js";
 import { Session } from "../models/Session.js";
 import { User } from "../models/User.js";
+import { ReportedLink } from "../models/ReportedLink.js";
 
 const incidentFixtures = [
   {
@@ -153,6 +154,7 @@ const seed = async () => {
   await AuditLog.deleteMany({});
   await Incident.deleteMany({});
   await User.deleteMany({});
+  await ReportedLink.deleteMany({});
   await Policy.deleteMany({});
 
   const createdUsers = await User.insertMany(usersToCreate);

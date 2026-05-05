@@ -7,11 +7,14 @@
     "server"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm run server:dev\" \"npm run client:dev\"",
     "build": "npm run build -w client",
     "lint": "npm run lint -w client",
     "preview": "npm run preview -w client",
     "seed": "npm run seed:test -w server",
+    "smoke": "npm run smoke -w server",
+    "test": "npm run lint -w client && npm run build -w client && npm run test:api",
+    "test:api": "npm run seed:test -w server && cross-env PORT=5010 SMOKE_API_BASE=http://127.0.0.1:5010/api/v1 WAIT_ON_TIMEOUT=120000 start-server-and-test \"npm run server:start\" http-get://127.0.0.1:5010/api/v1/system/health \"npm run smoke -w server\"",
     "client:dev": "npm run dev -w client",
     "client:build": "npm run build -w client",
     "client:lint": "npm run lint -w client",
@@ -20,6 +23,8 @@
     "server:start": "npm run start -w server"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "start-server-and-test": "^3.0.2"
   }
 }

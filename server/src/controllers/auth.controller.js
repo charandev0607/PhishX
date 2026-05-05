@@ -91,7 +91,8 @@ export const signup = async (req, res, next) => {
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email }).select("+password +refreshTokenHash failedAttempts lockUntil role email");
+    const normalizedEmail = email.toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail }).select("+password +refreshTokenHash failedAttempts lockUntil role email");
 
     if (!user) {
       const err = new Error("Invalid credentials");

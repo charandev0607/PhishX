@@ -30,7 +30,7 @@ Located in the `/server` directory, it is an Express API for threat ingestion an
 - `src/controllers/`: Request handlers for auth, analysis, incidents.
 - `src/services/`: Detection logic, scoring, retention, session and realtime support.
 - `src/utils/`: Reusable helpers (feature extraction, domain similarity, SSL checks, logging).
-- `src/config/`: Database and Redis configuration.
+- `src/config/`: Database configuration.
 
 ---
 
