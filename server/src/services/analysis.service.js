@@ -1,6 +1,6 @@
 import { extractUrlFeatures } from "../utils/featureExtractor.js";
 import { calculateRuleBasedScore, classifyRisk } from "./scoring.service.js";
-import { getUrlMLScore } from "./ml.service.js";
+import { getUrlMLScore, isMlStrictModeEnabled } from "./ml.service.js";
 import { validateSSLCertificate } from "../utils/sslValidator.js";
 import { detectCredentialHarvestingSignals } from "../utils/credentialDetector.js";
 
@@ -14,6 +14,11 @@ export const analyzeUrl = async ({ url, pageHtml = "", scriptContent = "" }) => 
   } catch {
     mlUnavailable = true;
     mlScore = 0;
+    if (isMlStrictModeEnabled()) {
+      const err = new Error("ML URL scoring service is unavailable");
+      err.statusCode = 503;
+      throw err;
+    }
   }
   const sslResult = await validateSSLCertificate(url);
   const credentialSignals = detectCredentialHarvestingSignals({ pageHtml, scriptContent });
