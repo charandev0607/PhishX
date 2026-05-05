@@ -53,13 +53,13 @@ export const schemas = {
     order: Joi.string().valid("asc", "desc").default("desc"),
   }),
   adminUsersQuery: Joi.object({
-    role: Joi.string().valid("admin", "analyst").optional(),
+    role: Joi.string().valid("admin", "analyst", "ml_engineer").optional(),
     search: Joi.string().max(200).optional(),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(20),
   }),
   adminUserRole: Joi.object({
-    role: Joi.string().valid("admin", "analyst").required(),
+    role: Joi.string().valid("admin", "analyst", "ml_engineer").required(),
   }),
   adminPolicyUpdate: Joi.object({
     autoBlockThreshold: Joi.number().min(0).max(100),
@@ -68,4 +68,18 @@ export const schemas = {
     notifyOnCritical: Joi.boolean(),
     maxAlertsPerMinute: Joi.number().integer().min(1).max(1000),
   }).min(1),
+  mlFeedback: Joi.object({
+    incidentId: Joi.string().hex().length(24).required(),
+    groundTruthStatus: Joi.string().valid("safe", "suspicious", "phishing").required(),
+    notes: Joi.string().max(2000).allow(""),
+  }),
+  reportLink: Joi.object({
+    url: Joi.string().uri({ scheme: ["http", "https"] }).required(),
+    description: Joi.string().max(2000).allow(""),
+  }),
+  reportGenerate: Joi.object({
+    startDate: Joi.date().iso().required(),
+    endDate: Joi.date().iso().required(),
+    type: Joi.string().valid("phishing", "suspicious", "safe").required(),
+  }),
 };

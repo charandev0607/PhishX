@@ -45,6 +45,17 @@ const ThreatDetails = ({ threat, onBack }) => {
       ]
   );
 
+  const normalizedEvents = (displayThreat.events && displayThreat.events.length
+    ? displayThreat.events
+    : [
+        {
+          time: displayThreat.createdAt ? new Date(displayThreat.createdAt).toLocaleString() : 'N/A',
+          desc: 'Threat analysis completed by detection pipeline',
+          state: (displayThreat.score || 0) >= 70 ? 'danger' : 'accent',
+        },
+      ]
+  );
+
   const isCritical = displayThreat.severity === 'critical';
 
   const getScoreColor = () => {
@@ -121,34 +132,15 @@ const ThreatDetails = ({ threat, onBack }) => {
             <div className="timeline-container">
               <div className="timeline-header">Detection Timeline</div>
               <div className="timeline">
-                <div className="timeline-item">
-                  <div className="t-dot t-danger"></div>
-                  <div className="t-content">
-                    <span className="t-time">T-2:00:00</span>
-                    <span className="t-desc">Domain registered (Age: &lt; 2 hrs)</span>
+                {normalizedEvents.map((event, idx) => (
+                  <div key={`${event.time}-${idx}`} className={`timeline-item ${idx === normalizedEvents.length - 1 ? 'active' : ''}`}>
+                    <div className={`t-dot t-${event.state || 'accent'}`}></div>
+                    <div className="t-content">
+                      <span className="t-time">{event.time}</span>
+                      <span className="t-desc">{event.desc}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="timeline-item">
-                  <div className="t-dot t-warning"></div>
-                  <div className="t-content">
-                    <span className="t-time">T-0:30:00</span>
-                    <span className="t-desc">SSL certificate issued</span>
-                  </div>
-                </div>
-                <div className="timeline-item">
-                  <div className="t-dot t-danger"></div>
-                  <div className="t-content">
-                    <span className="t-time">T-0:00:01</span>
-                    <span className="t-desc">First user click detected</span>
-                  </div>
-                </div>
-                <div className="timeline-item active">
-                  <div className="t-dot t-accent"></div>
-                  <div className="t-content">
-                    <span className="t-time">NOW</span>
-                    <span className="t-desc">Sentinel AI blocked access</span>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
@@ -197,19 +189,21 @@ const ThreatDetails = ({ threat, onBack }) => {
           <div className="glass-panel threat-card code-panel">
             <div className="card-header">
               <Code size={20} />
-              <h3>Raw System Logs</h3>
+              <h3>Analysis Metadata</h3>
             </div>
             <pre className="log-output">
-              {`[SYS] Initiating deep scan for req ID #${displayThreat.id}
-[NET] DNS resolution: ${displayThreat.ip} (AS1234)
-[SSL] Cert issuer: Let's Encrypt Authority X3
-[SSL] Valid from: ${new Date().toISOString()} (WARN: NEW)
-[DOM] Whois lookup: hidden via privacy guard
-[AI_CORE] Loading visual model v4.2...
-[AI_CORE] Image hash match: brand_score (98.4%)
-[HEUR] DOM parser found obfuscated fields
-[ACT] Policy 'Block High Risk' applied
-[RES] Connection terminated. Event logged.`}
+              {JSON.stringify(
+                {
+                  id: displayThreat.id,
+                  score: displayThreat.score,
+                  status: displayThreat.status,
+                  severity: displayThreat.severity,
+                  target: displayThreat.target || displayThreat.input || null,
+                  metadata: displayThreat.metadata || null,
+                },
+                null,
+                2
+              )}
             </pre>
           </div>
         </div>

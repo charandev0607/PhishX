@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Monitor, LayoutDashboard, Cpu, LogOut, ShieldAlert } from 'lucide-react';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import './App.css';
 import { apiFetch, setApiSession, setApiSessionUpdateHandler } from './lib/api';
 import BrowserExtension from './components/BrowserExtension';
@@ -8,7 +9,91 @@ import ThreatDetails from './components/ThreatDetails';
 import MLEngineerDashboard from './components/MLEngineerDashboard';
 import Auth from './components/Auth';
 
+const AuthenticatedApp = ({ user, activeTab, selectedThreat, onSetTab, onSelectThreat, onBack, onLogout }) => {
+  const isAdmin = user.role === 'admin';
+
+  return (
+    <div className="app-container">
+      <div className="demo-controls glass-panel">
+        <div className="demo-header">
+          <Monitor color="var(--accent-cyan)" size={24} />
+          <h1>Sentinel AI</h1>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', marginBottom: '16px' }}>
+          <p style={{ color: 'var(--accent-cyan)', fontWeight: 500 }}>
+            Logged in as: {isAdmin ? 'Security Admin' : 'End User'}
+          </p>
+          <button onClick={onLogout} className="btn-text" title="Logout">
+            <LogOut size={16} />
+          </button>
+        </div>
+
+        <div className="view-toggles">
+          <button
+            className={`tab-btn ${activeTab === 'extension' ? 'active' : ''}`}
+            onClick={() => onSetTab('extension')}
+          >
+            Browser Extension UI
+          </button>
+
+          <button className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`} onClick={() => onSetTab('details')}>
+            <ShieldAlert size={16} /> Threat Details
+          </button>
+
+          {isAdmin ? (
+            <>
+              <button
+                className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+                onClick={() => onSetTab('dashboard')}
+              >
+                <LayoutDashboard size={16} /> Admin Dashboard
+              </button>
+              <button
+                className={`tab-btn ${activeTab === 'ml-engineer' ? 'active' : ''}`}
+                onClick={() => onSetTab('ml-engineer')}
+              >
+                <Cpu size={16} /> ML Engineer Dashboard
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="view-container">
+        {activeTab === 'extension' && (
+          <div className="extension-showcase">
+            <div className="browser-mockup glass-panel">
+              <div className="browser-bar">
+                <div className="dots"><span></span><span></span><span></span></div>
+                <div className="address-bar">Awaiting analyzed target...</div>
+              </div>
+              <div className="browser-content">
+                <div className="extension-wrapper">
+                  <BrowserExtension onThreatDetected={onSelectThreat} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'dashboard' && isAdmin && (
+          <AdminDashboard onSelectThreat={onSelectThreat} />
+        )}
+
+        {activeTab === 'ml-engineer' && isAdmin && (
+          <MLEngineerDashboard />
+        )}
+
+        {activeTab === 'details' && (
+          <ThreatDetails threat={selectedThreat} onBack={onBack} />
+        )}
+      </div>
+    </div>
+  );
+};
+
 function App() {
+  const navigate = useNavigate();
   const initialAuth = (() => {
     try {
       const saved = localStorage.getItem('phishx_auth');
@@ -48,6 +133,7 @@ function App() {
     setApiSession(nextTokens);
     localStorage.setItem('phishx_auth', JSON.stringify({ user: userData, accessToken, refreshToken }));
     setActiveTab(userData.role === 'admin' ? 'dashboard' : 'extension');
+    navigate('/', { replace: true });
   };
 
   const handleLogout = async () => {
@@ -68,6 +154,7 @@ function App() {
     setApiSession(empty);
     localStorage.removeItem('phishx_auth');
     setActiveTab('extension');
+    navigate('/login', { replace: true });
   };
 
   const handleSelectThreat = (threat) => {
@@ -80,89 +167,36 @@ function App() {
     setActiveTab(user?.role === 'admin' ? 'dashboard' : 'extension');
   };
 
-  if (!user) return <Auth onLogin={handleLogin} />;
-
-  const isAdmin = user.role === 'admin';
-
   return (
-    <div className="app-container">
-      <div className="demo-controls glass-panel">
-        <div className="demo-header">
-          <Monitor color="var(--accent-cyan)" size={24} />
-          <h1>Sentinel AI</h1>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', marginBottom: '16px' }}>
-          <p style={{ color: 'var(--accent-cyan)', fontWeight: 500 }}>
-            Logged in as: {isAdmin ? 'Security Admin' : 'End User'}
-          </p>
-          <button onClick={handleLogout} className="btn-text" title="Logout">
-            <LogOut size={16} />
-          </button>
-        </div>
-
-        <div className="view-toggles">
-          <button
-            className={`tab-btn ${activeTab === 'extension' ? 'active' : ''}`}
-            onClick={() => setActiveTab('extension')}
-          >
-            Browser Extension UI
-          </button>
-          
-          <button className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`} onClick={() => setActiveTab('details')}>
-            <ShieldAlert size={16} /> Threat Details
-          </button>
-
-          {isAdmin ? (
-            <>
-              <button
-                className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-                onClick={() => setActiveTab('dashboard')}
-              >
-                <LayoutDashboard size={16} /> Admin Dashboard
-              </button>
-              <button
-                className={`tab-btn ${activeTab === 'ml-engineer' ? 'active' : ''}`}
-                onClick={() => setActiveTab('ml-engineer')}
-              >
-                <Cpu size={16} /> ML Engineer Dashboard
-              </button>
-            </>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="view-container">
-        {activeTab === 'extension' && (
-          <div className="extension-showcase">
-            <div className="browser-mockup glass-panel">
-              <div className="browser-bar">
-                <div className="dots"><span></span><span></span><span></span></div>
-                <div className="address-bar danger-url">
-                  https://paypal-security-update-verify.com/login
-                </div>
-              </div>
-              <div className="browser-content">
-                <div className="extension-wrapper">
-                  <BrowserExtension onThreatDetected={handleSelectThreat} />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'dashboard' && isAdmin && (
-          <AdminDashboard onSelectThreat={handleSelectThreat} />
-        )}
-
-        {activeTab === 'ml-engineer' && isAdmin && (
-          <MLEngineerDashboard />
-        )}
-
-        {activeTab === 'details' && (
-          <ThreatDetails threat={selectedThreat} onBack={handleBack} />
-        )}
-      </div>
-    </div>
+    <Routes>
+      <Route
+        path="/login"
+        element={user ? <Navigate to="/" replace /> : <Auth onLogin={handleLogin} />}
+      />
+      <Route
+        path="/signin"
+        element={<Navigate to="/login" replace />}
+      />
+      <Route
+        path="/"
+        element={
+          user ? (
+            <AuthenticatedApp
+              user={user}
+              activeTab={activeTab}
+              selectedThreat={selectedThreat}
+              onSetTab={setActiveTab}
+              onSelectThreat={handleSelectThreat}
+              onBack={handleBack}
+              onLogout={handleLogout}
+            />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
+    </Routes>
   );
 }
 

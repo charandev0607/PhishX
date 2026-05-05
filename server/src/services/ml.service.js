@@ -1,5 +1,7 @@
 const DEFAULT_ML_URL = "http://127.0.0.1:8010";
 
+export const isMlStrictModeEnabled = () => process.env.ML_STRICT_MODE === "true";
+
 const withTimeout = async (promise, timeoutMs) => {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);

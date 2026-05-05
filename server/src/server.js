@@ -6,7 +6,6 @@ import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import app from "./app.js";
 import { connectDB } from "./config/db.js";
-import { connectRedis, getRedisClient } from "./config/redis.js";
 import { User } from "./models/User.js";
 import { initSocket, stopSocketIntervals } from "./sockets/socket.js";
 import { logger } from "./utils/logger.js";
@@ -70,7 +69,6 @@ const bootstrap = async () => {
   try {
     await connectDB();
     await ensureBootstrapAdmin();
-    await connectRedis();
 
     const { server, mode } = createHttpServer();
     const io = initSocket(server);
@@ -87,11 +85,6 @@ const bootstrap = async () => {
         stopRetentionEngine();
         stopSocketIntervals();
         await mongoose.connection.close();
-
-        const redis = getRedisClient();
-        if (redis) {
-          await redis.quit();
-        }
 
         process.exit(0);
       });

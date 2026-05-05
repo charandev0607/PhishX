@@ -11,17 +11,21 @@ const MLEngineerDashboard = () => {
     const [activeTab, setActiveTab] = useState('threat-intel');
     const [metricsRows, setMetricsRows] = useState([]);
 
-    useEffect(() => {
-        const loadMetrics = async () => {
-            try {
-                const resp = await apiFetch('/api/v1/ml/metrics?days=14');
-                if (!resp.ok) return;
-                const json = await resp.json();
-                setMetricsRows(json?.data?.rows ?? []);
-            } catch {
+    const loadMetrics = async () => {
+        try {
+            const resp = await apiFetch('/api/v1/ml/metrics?days=14');
+            if (!resp.ok) {
                 setMetricsRows([]);
+                return;
             }
-        };
+            const json = await resp.json();
+            setMetricsRows(json?.data?.rows ?? []);
+        } catch {
+            setMetricsRows([]);
+        }
+    };
+
+    useEffect(() => {
         loadMetrics();
     }, []);
 
@@ -41,19 +45,28 @@ const MLEngineerDashboard = () => {
     const blockedStatsData = useMemo(() => {
         return metricsRows.map((row) => ({
             name: row.date?.slice(5) || 'N/A',
-            phishing: row.byType?.url?.feedbackCount || 0,
-            malware: row.falsePositives || 0,
-            spam: row.byType?.email?.feedbackCount || 0,
+            url: row.byType?.url?.feedbackCount || 0,
+            email: row.byType?.email?.feedbackCount || 0,
+            falsePositives: row.falsePositives || 0,
         }));
     }, [metricsRows]);
 
-    const handleUpdateIntelligence = () => {
+    const handleRefreshMetrics = async () => {
         setIsUpdatingModels(true);
-        setTimeout(() => {
+        try {
+            await loadMetrics();
+        } finally {
             setIsUpdatingModels(false);
-            alert("Threat Intelligence successfully updated with latest incident data.");
-        }, 3000);
+        }
     };
+
+    const latest = metricsRows.at(-1) || null;
+    const latestTotal = latest
+        ? (latest.truePositives || 0) + (latest.trueNegatives || 0) + (latest.falsePositives || 0) + (latest.falseNegatives || 0)
+        : 0;
+    const latestErrorRate = latestTotal > 0
+        ? (((latest.falsePositives || 0) + (latest.falseNegatives || 0)) / latestTotal) * 100
+        : null;
 
     return (
         <div className="ml-dashboard-layout">
@@ -79,8 +92,10 @@ const MLEngineerDashboard = () => {
 
                  <div className="system-health">
                     <div className="health-header">
-                        <span>Model Drift</span>
-                        <span className="status-good">&lt; 0.5%</span>
+                        <span>Latest Error Rate</span>
+                        <span className="status-good">
+                            {latestErrorRate === null ? 'N/A' : `${latestErrorRate.toFixed(2)}%`}
+                        </span>
                     </div>
                 </div>
             </aside>
@@ -129,13 +144,13 @@ const MLEngineerDashboard = () => {
 
                                 <button 
                                     className={`btn-primary large-btn ${isUpdatingModels ? 'loading' : ''}`} 
-                                    onClick={handleUpdateIntelligence}
+                                    onClick={handleRefreshMetrics}
                                     disabled={isUpdatingModels}
                                 >
                                     {isUpdatingModels ? (
-                                        <><RefreshCw className="spin" size={20} /> Updating Intelligence...</>
+                                        <><RefreshCw className="spin" size={20} /> Refreshing Metrics...</>
                                     ) : (
-                                        <><TrendingUp size={20} /> Start Intelligence Update</>
+                                        <><TrendingUp size={20} /> Refresh ML Metrics</>
                                     )}
                                 </button>
                             </div>
@@ -156,9 +171,9 @@ const MLEngineerDashboard = () => {
                                             <XAxis dataKey="name" stroke="#a0a0b0" />
                                             <YAxis stroke="#a0a0b0" />
                                             <RechartsTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#111118', border: '1px solid #333' }} />
-                                            <Bar dataKey="phishing" stackId="a" fill="#00f3ff" name="Phishing Sites" />
-                                            <Bar dataKey="malware" stackId="a" fill="#ff0055" name="Malware Drops" />
-                                            <Bar dataKey="spam" stackId="a" fill="#9d00ff" name="Spam/Scam" />
+                                            <Bar dataKey="url" stackId="a" fill="#00f3ff" name="URL Feedback" />
+                                            <Bar dataKey="email" stackId="a" fill="#9d00ff" name="Email Feedback" />
+                                            <Bar dataKey="falsePositives" stackId="a" fill="#ff0055" name="False Positives" />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>

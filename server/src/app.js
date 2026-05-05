@@ -11,6 +11,7 @@ import incidentRoutes from "./routes/incident.routes.js";
 import mlRoutes from "./routes/ml.routes.js";
 import securityRoutes from "./routes/security.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import monitoringRoutes from "./routes/monitoring.routes.js";
 import { apiRateLimiter } from "./middleware/rateLimit.middleware.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js";
 import { csrfProtectionMiddleware, xssSanitizeMiddleware } from "./middleware/security.middleware.js";
@@ -71,6 +72,7 @@ app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1", analysisRoutes);
 app.use("/api/v1", incidentRoutes);
 app.use("/api/v1", mlRoutes);
+app.use("/api/v1", monitoringRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
