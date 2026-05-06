@@ -4,6 +4,7 @@ import { analyzeWebpage } from "../services/webpageAnalysis.service.js";
 import { Incident } from "../models/Incident.js";
 import { validateIncident } from "../models/schemas.js";
 import { AuditLog } from "../models/AuditLog.js";
+import { Policy } from "../models/Policy.js";
 import { getLatestHealth, getIncidentEventsSince, pushIncidentEvent } from "../services/realtime.service.js";
 import { getApiMetricsSnapshot } from "../services/apiMetrics.service.js";
 import { observeInput } from "../services/adversarialMonitoring.service.js";
@@ -23,11 +24,32 @@ const mapThreatType = ({ status, reasons = [] }) => {
   return "phishing";
 };
 
+const applyPolicyToResult = async (result) => {
+  const policy = await Policy.findOne({ key: "default" }).select("autoBlockThreshold").lean();
+  const threshold = Number(policy?.autoBlockThreshold);
+  if (!Number.isFinite(threshold)) return result;
+  if (Number(result.score) < threshold) return result;
+  if (result.status === "phishing") return result;
+  return {
+    ...result,
+    status: "phishing",
+    reasons: [...new Set([...(result.reasons || []), `Policy auto-block threshold reached (${threshold})`])],
+    metadata: {
+      ...(result.metadata || {}),
+      policy: {
+        autoBlockThreshold: threshold,
+        autoBlocked: true,
+      },
+    },
+  };
+};
+
 export const analyzeUrlController = async (req, res, next) => {
   try {
     const { url, pageHtml = "", scriptContent = "" } = req.body;
     observeInput({ ip: req.ip, type: "url", rawInput: url });
-    const result = await analyzeUrl({ url, pageHtml, scriptContent });
+    const baseResult = await analyzeUrl({ url, pageHtml, scriptContent });
+    const result = await applyPolicyToResult(baseResult);
 
     const incidentValidationPayload = {
       type: mapThreatType(result),
@@ -94,7 +116,8 @@ export const analyzeEmailController = async (req, res, next) => {
   try {
     const { subject, body } = req.body;
     observeInput({ ip: req.ip, type: "email", rawInput: `${subject}\n${body}` });
-    const result = await analyzeEmail({ subject, body });
+    const baseResult = await analyzeEmail({ subject, body });
+    const result = await applyPolicyToResult(baseResult);
 
     const incidentValidationPayload = {
       type: mapThreatType(result),
@@ -164,7 +187,8 @@ export const analyzeWebpageController = async (req, res, next) => {
   try {
     const { text, sourceUrl = "" } = req.body;
     observeInput({ ip: req.ip, type: "webpage", rawInput: text.slice(0, 4000) });
-    const result = await analyzeWebpage({ text });
+    const baseResult = await analyzeWebpage({ text });
+    const result = await applyPolicyToResult(baseResult);
 
     const incidentValidationPayload = {
       type: mapThreatType(result),
@@ -189,6 +213,7 @@ export const analyzeWebpageController = async (req, res, next) => {
       metadata: {
         ...result.metadata,
         sourceUrl,
+        text: text.slice(0, 40000),
       },
     });
 

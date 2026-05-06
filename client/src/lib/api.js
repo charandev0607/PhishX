@@ -5,6 +5,7 @@ let session = {
 
 let onSessionUpdate = null;
 let onUnauthorized = null;
+let refreshInFlight = null;
 
 export const setApiSession = ({ accessToken, refreshToken }) => {
   session = { accessToken: accessToken || null, refreshToken: refreshToken || null };
@@ -19,20 +20,30 @@ export const setApiUnauthorizedHandler = (handler) => {
 };
 
 const refreshAccessToken = async () => {
-  if (!session.refreshToken) return false;
-  const res = await fetch("/api/v1/auth/refresh", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ refreshToken: session.refreshToken }),
-  });
-  if (!res.ok) return false;
-  const json = await res.json();
-  const nextAccess = json?.data?.accessToken;
-  const nextRefresh = json?.data?.refreshToken;
-  if (!nextAccess || !nextRefresh) return false;
-  session = { accessToken: nextAccess, refreshToken: nextRefresh };
-  if (onSessionUpdate) onSessionUpdate(session);
-  return true;
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+  refreshInFlight = (async () => {
+    if (!session.refreshToken) return false;
+    const res = await fetch("/api/v1/auth/refresh", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken: session.refreshToken }),
+    });
+    if (!res.ok) return false;
+    const json = await res.json();
+    const nextAccess = json?.data?.accessToken;
+    const nextRefresh = json?.data?.refreshToken;
+    if (!nextAccess || !nextRefresh) return false;
+    session = { accessToken: nextAccess, refreshToken: nextRefresh };
+    if (onSessionUpdate) onSessionUpdate(session);
+    return true;
+  })();
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
 };
 
 export const apiFetch = async (path, options = {}, { retryOn401 = true } = {}) => {
