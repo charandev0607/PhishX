@@ -33,7 +33,20 @@ def main() -> None:
 
     X = np.asarray(X, dtype=np.float32)
     y = np.asarray(y, dtype=np.int32)
-    Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.15, random_state=42, stratify=y)
+    unique, counts = np.unique(y, return_counts=True)
+    if unique.size < 2:
+        raise SystemExit(f"Dataset must contain at least 2 classes: {ds}")
+
+    # Tiny datasets can lead to a single-class train fold.
+    if X.shape[0] < 20 or int(counts.min()) < 2:
+        Xtr, ytr = X, y
+        Xte, yte = X, y
+    else:
+        try:
+            Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.15, random_state=42, stratify=y)
+        except ValueError:
+            # Small or highly imbalanced datasets can fail stratified splitting.
+            Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.15, random_state=42, stratify=None)
 
     clf = Pipeline(
         steps=[

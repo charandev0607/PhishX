@@ -30,3 +30,33 @@
 - Metrics: {'precision': 0.9989151071331706, 'recall': 0.9821333333333333, 'f1': 0.9904531397068711, 'auc': 0.9962603022222223}
 - Notes: URL lexical/structural logistic regression baseline
 
+## 20260506T171120
+- Created: 2026-05-06T17:11:20.430644+00:00
+- Metrics: {'precision': 0.9989151071331706, 'recall': 0.9821333333333333, 'f1': 0.9904531397068711, 'auc': 0.9962603022222223}
+- Notes: URL lexical/structural logistic regression baseline
+
+## 20260506T174037
+- Created: 2026-05-06T17:40:37.592668+00:00
+- Metrics: {'precision': 0.9989151071331706, 'recall': 0.9821333333333333, 'f1': 0.9904531397068711, 'auc': 0.9962603022222223}
+- Notes: URL lexical/structural logistic regression baseline
+
+## 20260506T174108
+- Created: 2026-05-06T17:41:08.562087+00:00
+- Metrics: {'precision': 0.9989151071331706, 'recall': 0.9821333333333333, 'f1': 0.9904531397068711, 'auc': 0.9962603022222223}
+- Notes: URL lexical/structural logistic regression baseline
+
+## 20260506T174148
+- Created: 2026-05-06T17:41:48.242733+00:00
+- Metrics: {'precision': 0.9989151071331706, 'recall': 0.9821333333333333, 'f1': 0.9904531397068711, 'auc': 0.9962603022222223}
+- Notes: URL lexical/structural logistic regression baseline
+
+## 20260506T174255
+- Created: 2026-05-06T17:42:55.456171+00:00
+- Metrics: {'precision': 0.9989151071331706, 'recall': 0.9821333333333333, 'f1': 0.9904531397068711, 'auc': 0.9962603022222223}
+- Notes: URL lexical/structural logistic regression baseline
+
+## 20260506T174413
+- Created: 2026-05-06T17:44:13.172569+00:00
+- Metrics: {'precision': 0.9989151071331706, 'recall': 0.9821333333333333, 'f1': 0.9904531397068711, 'auc': 0.9962603022222223}
+- Notes: URL lexical/structural logistic regression baseline
+

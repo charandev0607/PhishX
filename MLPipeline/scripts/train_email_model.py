@@ -30,11 +30,29 @@ def main() -> None:
         y.append(int(r["label"]))
 
     y = np.asarray(y, dtype=np.int32)
-    Xtr, Xte, ytr, yte = train_test_split(texts, y, test_size=0.15, random_state=42, stratify=y)
+    unique, counts = np.unique(y, return_counts=True)
+    if unique.size < 2:
+        raise SystemExit(f"Dataset must contain at least 2 classes: {ds}")
+
+    # With extremely small datasets (common for first incremental runs),
+    # splitting can produce a train fold with a single class.
+    if len(texts) < 20 or int(counts.min()) < 2:
+        Xtr, ytr = texts, y
+        Xte, yte = texts, y
+    else:
+        try:
+            Xtr, Xte, ytr, yte = train_test_split(texts, y, test_size=0.15, random_state=42, stratify=y)
+        except ValueError:
+            # Small or highly imbalanced datasets can fail stratified splitting.
+            Xtr, Xte, ytr, yte = train_test_split(texts, y, test_size=0.15, random_state=42, stratify=None)
+
+    # Some environments may start with tiny incremental datasets. `min_df=2` can
+    # break when there are too few documents, so adapt it for small samples.
+    min_df = 2 if len(Xtr) >= 10 else 1
 
     clf = Pipeline(
         steps=[
-            ("tfidf", TfidfVectorizer(ngram_range=(1, 2), min_df=2, max_features=40000)),
+            ("tfidf", TfidfVectorizer(ngram_range=(1, 2), min_df=min_df, max_features=40000)),
             ("lr", LogisticRegression(max_iter=2000, class_weight="balanced")),
         ]
     )
