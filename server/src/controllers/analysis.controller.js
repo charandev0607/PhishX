@@ -19,7 +19,7 @@ const mapThreatType = ({ status, reasons = [] }) => {
   const joined = reasons.join(" ").toLowerCase();
   if (joined.includes("credential")) return "credential_harvesting";
   if (joined.includes("malware")) return "malware";
-  if (status === "safe") return "spam";
+  if (status === "suspicious") return "spam";
   return "phishing";
 };
 

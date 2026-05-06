@@ -10,7 +10,7 @@ import requests
 
 @dataclass(frozen=True)
 class SourceConfig:
-    majestic_csv_url: str = "http://downloads.majestic.com/majestic_million.csv"
+    majestic_csv_url: str = "https://downloads.majestic.com/majestic_million.csv"
     timeout_s: float = 120.0
     user_agent: str = "phisx-mlpipeline/1.0 (github.com/your-org; contact=security@example.com)"
 

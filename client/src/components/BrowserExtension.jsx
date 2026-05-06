@@ -90,14 +90,14 @@ const BrowserExtension = ({ onThreatDetected }) => {
                         <p>Analyze real URL or email content for phishing threats</p>
                     </div>
                     <div style={{ width: '100%', display: 'grid', gap: '10px' }}>
-                        <div className="role-selector">
-                            <button type="button" className={`role-btn ${mode === 'url' ? 'active' : ''}`} onClick={() => setMode('url')}>URL</button>
-                            <button type="button" className={`role-btn ${mode === 'email' ? 'active' : ''}`} onClick={() => setMode('email')}>Email</button>
-                            <button type="button" className={`role-btn ${mode === 'webpage' ? 'active' : ''}`} onClick={() => setMode('webpage')}>Webpage</button>
+                        <div className="analysis-mode-toggle">
+                            <button type="button" className={`mode-btn ${mode === 'url' ? 'active' : ''}`} onClick={() => setMode('url')}>URL</button>
+                            <button type="button" className={`mode-btn ${mode === 'email' ? 'active' : ''}`} onClick={() => setMode('email')}>Email</button>
+                            <button type="button" className={`mode-btn ${mode === 'webpage' ? 'active' : ''}`} onClick={() => setMode('webpage')}>Webpage</button>
                         </div>
                         {mode === 'url' ? (
                             <input
-                                className="form-input"
+                                className="scan-input"
                                 type="url"
                                 placeholder="https://example.com/login"
                                 value={url}
@@ -106,14 +106,14 @@ const BrowserExtension = ({ onThreatDetected }) => {
                         ) : mode === 'email' ? (
                             <>
                                 <input
-                                    className="form-input"
+                                    className="scan-input"
                                     type="text"
                                     placeholder="Email subject"
                                     value={subject}
                                     onChange={(e) => setSubject(e.target.value)}
                                 />
                                 <textarea
-                                    className="form-input"
+                                    className="scan-input"
                                     rows={4}
                                     placeholder="Email body"
                                     value={body}
@@ -123,14 +123,14 @@ const BrowserExtension = ({ onThreatDetected }) => {
                         ) : (
                             <>
                                 <input
-                                    className="form-input"
+                                    className="scan-input"
                                     type="url"
                                     placeholder="Optional source URL (https://example.com)"
                                     value={url}
                                     onChange={(e) => setUrl(e.target.value)}
                                 />
                                 <textarea
-                                    className="form-input"
+                                    className="scan-input"
                                     rows={6}
                                     placeholder="Paste webpage text/content to analyze"
                                     value={webpageText}

@@ -13,14 +13,14 @@ This folder contains the offline ML pipeline for PhishX:
 Generate a synthetic dataset (for wiring + CI smoke tests):
 
 ```bash
-node MLPipeline/scripts/generate_synthetic_datasets.js
+python MLPipeline/scripts/generate_synthetic_datasets.py
 ```
 
 Train and evaluate all models:
 
 ```bash
-node MLPipeline/scripts/train_all.js
-node MLPipeline/scripts/eval_all.js
+python MLPipeline/scripts/train_all.py
+python MLPipeline/scripts/eval_all.py
 ```
 
 Artifacts are written to `MLPipeline/artifacts/` and loaded by the Python inference service at runtime.

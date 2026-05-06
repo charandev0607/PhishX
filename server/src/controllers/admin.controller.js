@@ -65,6 +65,11 @@ export const updateUserRoleController = async (req, res, next) => {
   try {
     const { userId } = req.params;
     const { role } = req.body;
+    if (String(req.user?.id) === String(userId) && role !== "admin") {
+      const err = new Error("Admins cannot remove their own admin role");
+      err.statusCode = 400;
+      throw err;
+    }
 
     const targetUser = await User.findById(userId);
     if (!targetUser) {

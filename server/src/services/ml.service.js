@@ -12,7 +12,9 @@ const withTimeout = async (promise, timeoutMs) => {
   }
 };
 
-const postJson = async (url, body, { timeoutMs = 900 } = {}) =>
+const DEFAULT_ML_TIMEOUT_MS = Number(process.env.ML_REQUEST_TIMEOUT_MS || 5000);
+
+const postJson = async (url, body, { timeoutMs = DEFAULT_ML_TIMEOUT_MS } = {}) =>
   withTimeout(
     async (signal) => {
       const res = await fetch(url, {

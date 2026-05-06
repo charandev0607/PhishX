@@ -79,7 +79,8 @@ export const mlRetrainController = async (req, res, next) => {
       }
     } catch (remoteError) {
       // Fallback for local development where Python service may not expose /retrain.
-      await execFileAsync("python", ["MLPipeline/scripts/retrain_all.py"], { cwd: process.cwd(), timeout: 20 * 60 * 1000 });
+      const pythonBin = process.platform === "win32" ? "python" : "python3";
+      await execFileAsync(pythonBin, ["MLPipeline/scripts/retrain_all.py"], { cwd: process.cwd(), timeout: 20 * 60 * 1000 });
       payload = { mode: "local-fallback", message: "Retraining completed locally" };
     }
 

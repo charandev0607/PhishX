@@ -9,7 +9,7 @@ const mlFeedbackSchema = new mongoose.Schema(
     },
     incidentType: {
       type: String,
-      enum: ["url", "email"],
+      enum: ["url", "email", "webpage"],
       required: true,
       index: true,
     },

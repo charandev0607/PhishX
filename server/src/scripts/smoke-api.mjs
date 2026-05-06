@@ -287,6 +287,7 @@ async function main() {
   // Admin flow
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
+  const requireAdminChecks = process.env.SMOKE_REQUIRE_ADMIN !== "false";
   let adminAccess = null;
   if (adminEmail && adminPassword) {
     const al = await jsonFetch("POST", "/auth/login", { body: { email: adminEmail, password: adminPassword } });
@@ -399,9 +400,13 @@ async function main() {
       });
       ok("reports/generate admin → 200", reportGen.status === 200);
       ok("reports/generate has incidentCount", typeof reportGen.data?.data?.incidentCount === "number");
+    } else if (requireAdminChecks) {
+      ok("admin credentials login works", false, "admin credentials failed; cannot run admin checks");
     } else {
       console.warn("Admin credentials failed; skipping admin-only checks");
     }
+  } else if (requireAdminChecks) {
+    ok("admin env configured for smoke tests", false, "set ADMIN_EMAIL and ADMIN_PASSWORD");
   } else {
     console.warn("ADMIN_EMAIL/ADMIN_PASSWORD not set — skipping admin checks");
   }
