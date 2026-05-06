@@ -9,7 +9,8 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: join(__dirname, "..", "..", ".env") });
 
-const BASE = process.env.SMOKE_API_BASE || "http://127.0.0.1:5000/api/v1";
+const smokePort = Number(process.env.PORT || 5000);
+const BASE = process.env.SMOKE_API_BASE || `http://127.0.0.1:${smokePort}/api/v1`;
 
 let passed = 0;
 let failed = 0;
@@ -62,7 +63,7 @@ async function waitForApiReady(maxMs = Number(process.env.SMOKE_WAIT_MS || 90000
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error(`Timed out waiting for API at ${BASE} (${lastErr}). Start one backend only (port 5000 free), then retry.`);
+  throw new Error(`Timed out waiting for API at ${BASE} (${lastErr}). Start one backend only and ensure target port is free, then retry.`);
 }
 
 async function main() {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 import sys
 from typing import Any, Dict
 
@@ -85,4 +86,19 @@ def score_webpage(req: WebReq):
     X = np.asarray([vec], dtype=np.float32)
     p = float(model.predict_proba(X)[:, 1][0])
     return {"model": "webpage_signals_rf", "version": version, "score": p, "threshold": float(card.get("threshold", 0.5)), "signals": feats}
+
+
+@app.post("/retrain")
+def retrain_models():
+    script = repo_root() / "MLPipeline" / "scripts" / "retrain_all.py"
+    completed = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, check=False)
+    if completed.returncode != 0:
+        return {
+            "ok": False,
+            "message": "Retraining failed",
+            "stdout": completed.stdout[-2000:],
+            "stderr": completed.stderr[-2000:],
+        }
+    _cache.clear()
+    return {"ok": True, "message": "Retraining completed successfully"}
 

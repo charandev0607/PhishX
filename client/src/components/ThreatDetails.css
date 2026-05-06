@@ -256,6 +256,17 @@
     font-size: 0.85rem !important;
 }
 
+.ip-info-flex {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
 /* Timeline */
 .timeline-container {
     background: rgba(0, 0, 0, 0.2);

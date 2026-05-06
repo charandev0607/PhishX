@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { User } from "../models/User.js";
 import { AuditLog } from "../models/AuditLog.js";
@@ -211,6 +212,89 @@ export const logout = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Logged out successfully",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const normalizedEmail = email.toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail }).select("+passwordResetTokenHash +passwordResetExpiresAt");
+
+    // Do not reveal if the user exists.
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: "If the email exists, a reset token has been issued",
+      });
+    }
+
+    const rawToken = crypto.randomBytes(24).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    user.passwordResetTokenHash = tokenHash;
+    user.passwordResetExpiresAt = expiresAt;
+    await user.save();
+
+    await AuditLog.create({
+      userId: user._id,
+      action: "auth:forgot-password",
+      ip: req.ip,
+      metadata: { expiresAt },
+    });
+
+    const data = {};
+    if (process.env.NODE_ENV !== "production") {
+      data.resetToken = rawToken;
+      data.expiresAt = expiresAt;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "If the email exists, a reset token has been issued",
+      data,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body;
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await User.findOne({
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpiresAt: { $gt: new Date() },
+    }).select("+password +passwordResetTokenHash +passwordResetExpiresAt");
+
+    if (!user) {
+      const err = new Error("Invalid or expired reset token");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.failedAttempts = 0;
+    user.lockUntil = null;
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpiresAt = null;
+    user.refreshTokenHash = null;
+    await user.save();
+
+    await AuditLog.create({
+      userId: user._id,
+      action: "auth:reset-password",
+      ip: req.ip,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successful. Please login with new password.",
     });
   } catch (error) {
     return next(error);

@@ -29,6 +29,13 @@ export const schemas = {
   refresh: Joi.object({
     refreshToken: Joi.string().required(),
   }),
+  forgotPassword: Joi.object({
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+  }),
+  resetPassword: Joi.object({
+    token: Joi.string().min(16).required(),
+    newPassword: Joi.string().min(8).required(),
+  }),
   analyzeUrl: Joi.object({
     url: Joi.string().uri({ scheme: ["http", "https"] }).required(),
     pageHtml: Joi.string().max(50000).allow(""),
@@ -37,6 +44,10 @@ export const schemas = {
   analyzeEmail: Joi.object({
     subject: Joi.string().max(500).required(),
     body: Joi.string().max(50000).required(),
+  }),
+  analyzeWebpage: Joi.object({
+    text: Joi.string().max(40000).required(),
+    sourceUrl: Joi.string().uri({ scheme: ["http", "https"] }).optional(),
   }),
   pollingQuery: Joi.object({
     since: Joi.date().iso().optional(),
