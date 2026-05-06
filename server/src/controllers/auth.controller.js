@@ -14,7 +14,7 @@ const signAccessToken = (user, sessionId) =>
   });
 
 const signRefreshToken = (user, sessionId) =>
-  jwt.sign({ sub: user._id.toString(), tokenType: "refresh", sid: sessionId.toString() }, process.env.JWT_REFRESH_SECRET, {
+  jwt.sign({ sub: user._id.toString(), tokenType: "refresh", sid: sessionId.toString(), jti: crypto.randomUUID() }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: process.env.JWT_REFRESH_EXPIRES || "7d",
   });
 
@@ -192,22 +192,23 @@ export const refresh = async (req, res, next) => {
 export const logout = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-
-    if (decoded.sid) {
-      await revokeSession(decoded.sid);
+    try {
+      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+      if (decoded.sid) {
+        await revokeSession(decoded.sid);
+      }
+      await User.findByIdAndUpdate(decoded.sub, { $set: { refreshTokenHash: null } });
+      await AuditLog.create({
+        userId: decoded.sub,
+        action: "auth:logout",
+        ip: req.ip,
+        metadata: {
+          sessionId: decoded.sid,
+        },
+      });
+    } catch {
+      // Keep logout idempotent: invalid/expired tokens should still return success.
     }
-
-    await User.findByIdAndUpdate(decoded.sub, { $set: { refreshTokenHash: null } });
-
-    await AuditLog.create({
-      userId: decoded.sub,
-      action: "auth:logout",
-      ip: req.ip,
-      metadata: {
-        sessionId: decoded.sid,
-      },
-    });
 
     return res.status(200).json({
       success: true,

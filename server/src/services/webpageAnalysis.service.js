@@ -10,6 +10,7 @@ export const analyzeWebpage = async ({ text = "" }) => {
   for (const pattern of SUSPICIOUS_PATTERNS) {
     if (pattern.test(text)) {
       ruleScore += 10;
+      reasons.push(`Rule-based detector matched pattern: ${pattern.source}`);
     }
   }
 

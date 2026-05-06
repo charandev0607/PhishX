@@ -19,7 +19,7 @@ const mapThreatType = ({ status, reasons = [] }) => {
   const joined = reasons.join(" ").toLowerCase();
   if (joined.includes("credential")) return "credential_harvesting";
   if (joined.includes("malware")) return "malware";
-  if (status === "safe") return "spam";
+  if (status === "suspicious") return "spam";
   return "phishing";
 };
 
@@ -259,14 +259,14 @@ export const systemHealthController = async (req, res, next) => {
       message: "System healthy",
       data: {
         uptime,
-        memory: {
+        memory: process.env.NODE_ENV === "production" ? undefined : {
           rss: memory.rss,
           heapTotal: memory.heapTotal,
           heapUsed: memory.heapUsed,
           external: memory.external,
         },
         responseTime: Number(elapsedMs.toFixed(2)),
-        apiPerformance: getApiMetricsSnapshot(),
+        apiPerformance: process.env.NODE_ENV === "production" ? undefined : getApiMetricsSnapshot(),
       },
     });
   } catch (error) {

@@ -4,6 +4,7 @@ const incidentSchema = new mongoose.Schema(
   {
     type: {
       type: String,
+      enum: ["url", "email", "webpage"],
       default: "url",
       index: true,
     },

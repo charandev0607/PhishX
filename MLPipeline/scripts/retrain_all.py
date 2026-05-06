@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import shutil
+import sys
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+# Ensure local package imports work when script is executed directly.
+sys.path.insert(0, str(REPO_ROOT / "MLPipeline" / "py"))
 
 from mlpipeline.io_jsonl import read_jsonl, write_jsonl
 
@@ -26,11 +31,7 @@ def merge_dataset(base: Path, incremental: Path, key_field: str) -> None:
 
 
 def main() -> None:
-    repo_root = Path(__file__).resolve().parents[2]
-    # Ensure imports work when executed directly
-    import sys
-
-    sys.path.insert(0, str(repo_root / "MLPipeline" / "py"))
+    repo_root = REPO_ROOT
 
     ds = repo_root / "MLPipeline" / "datasets"
     inc = repo_root / "MLPipeline" / "datasets" / "incremental"

@@ -5,7 +5,14 @@ import { validateSSLCertificate } from "../utils/sslValidator.js";
 import { detectCredentialHarvestingSignals } from "../utils/credentialDetector.js";
 
 export const analyzeUrl = async ({ url, pageHtml = "", scriptContent = "" }) => {
-  const features = extractUrlFeatures(url);
+  let features;
+  try {
+    features = extractUrlFeatures(url);
+  } catch {
+    const err = new Error("Invalid URL format");
+    err.statusCode = 400;
+    throw err;
+  }
   const ruleResult = calculateRuleBasedScore(features);
   let mlScore = 0;
   let mlUnavailable = false;
@@ -24,7 +31,7 @@ export const analyzeUrl = async ({ url, pageHtml = "", scriptContent = "" }) => 
   const credentialSignals = detectCredentialHarvestingSignals({ pageHtml, scriptContent });
 
   const baseScore = Math.round(ruleResult.score * 0.6 + mlScore * 0.4);
-  const sslPenalty = sslResult.valid ? 0 : 15;
+  const sslPenalty = features.protocol === "https:" && !sslResult.valid ? 15 : 0;
   const finalScore = Math.min(100, baseScore + sslPenalty + credentialSignals.scoreDelta);
   const status = classifyRisk(finalScore);
 

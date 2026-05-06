@@ -53,8 +53,5 @@ export const revokeSession = async (sessionId) => {
 
 export const verifyRefreshToken = async ({ session, refreshToken }) => {
   const tokenDigest = digestRefreshToken(refreshToken);
-  const digestMatch = await bcrypt.compare(tokenDigest, session.refreshTokenHash);
-  if (digestMatch) return true;
-  // Backward compatibility for sessions hashed before digesting.
-  return bcrypt.compare(refreshToken, session.refreshTokenHash);
+  return bcrypt.compare(tokenDigest, session.refreshTokenHash);
 };

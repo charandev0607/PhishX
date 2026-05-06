@@ -1,6 +1,73 @@
-import tls from "tls";
+import https from "https";
 
 const DEV_SKIP_TLDS = [".example", ".test", ".invalid", ".localhost"];
+const DEFAULT_SSL_TIMEOUT_MS = Number(process.env.SSL_CHECK_TIMEOUT_MS || 5000);
+const MAX_REDIRECTS = Number(process.env.SSL_MAX_REDIRECTS || 5);
+const isPrivateIpv4 = (host) =>
+  /^10\./.test(host) ||
+  /^127\./.test(host) ||
+  /^192\.168\./.test(host) ||
+  /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
+const isInternalHost = (host) =>
+  host === "localhost" || host === "127.0.0.1" || host === "::1" || isPrivateIpv4(host);
+
+const requestTlsMetadata = (urlObj) =>
+  new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        protocol: "https:",
+        hostname: urlObj.hostname,
+        port: urlObj.port ? Number(urlObj.port) : 443,
+        path: `${urlObj.pathname}${urlObj.search}`,
+        method: "GET",
+        servername: urlObj.hostname,
+        rejectUnauthorized: false,
+        timeout: DEFAULT_SSL_TIMEOUT_MS,
+      },
+      (res) => {
+        const certificate = res.socket?.getPeerCertificate?.() || null;
+        const authorized = Boolean(res.socket?.authorized);
+        const authorizationError = res.socket?.authorizationError || null;
+        const statusCode = Number(res.statusCode || 0);
+        const location = res.headers?.location || null;
+        res.resume();
+        resolve({ certificate, authorized, authorizationError, statusCode, location });
+      }
+    );
+
+    req.on("timeout", () => {
+      req.destroy(new Error("SSL validation timed out"));
+    });
+    req.on("error", reject);
+    req.end();
+  });
+
+const resolveTlsWithRedirects = async (startUrl) => {
+  const redirects = [];
+  let current = new URL(startUrl);
+
+  for (let i = 0; i <= MAX_REDIRECTS; i += 1) {
+    if (current.protocol !== "https:") {
+      return { current, redirects, certificate: null, authorized: false, authorizationError: "redirected to non-https" };
+    }
+    const probe = await requestTlsMetadata(current);
+    if (probe.statusCode >= 300 && probe.statusCode < 400 && probe.location) {
+      const next = new URL(probe.location, current);
+      redirects.push({ from: current.toString(), to: next.toString(), statusCode: probe.statusCode });
+      current = next;
+      continue;
+    }
+    return {
+      current,
+      redirects,
+      certificate: probe.certificate,
+      authorized: probe.authorized,
+      authorizationError: probe.authorizationError,
+    };
+  }
+
+  throw new Error("Too many redirects during SSL validation");
+};
 
 export const validateSSLCertificate = async (rawUrl) => {
   try {
@@ -28,32 +95,22 @@ export const validateSSLCertificate = async (rawUrl) => {
       };
     }
 
-    const certificate = await new Promise((resolve, reject) => {
-      const socket = tls.connect(
-        {
-          host: parsed.hostname,
-          port: parsed.port ? Number(parsed.port) : 443,
-          servername: parsed.hostname,
-          minVersion: "TLSv1.2",
-          timeout: Number(process.env.SSL_CHECK_TIMEOUT_MS || 2000),
+    const tlsResult = await resolveTlsWithRedirects(parsed.toString());
+    const finalHost = tlsResult.current.hostname;
+
+    if (isInternalHost(finalHost)) {
+      return {
+        valid: true,
+        reasons: ["SSL validation skipped for internal/private host"],
+        metadata: {
+          skipped: true,
+          hostname: finalHost,
+          redirects: tlsResult.redirects,
         },
-        () => {
-          const cert = socket.getPeerCertificate();
-          socket.end();
-          resolve(cert);
-        }
-      );
+      };
+    }
 
-      socket.on("error", (error) => {
-        socket.destroy();
-        reject(error);
-      });
-
-      socket.on("timeout", () => {
-        socket.destroy();
-        reject(new Error("SSL validation timed out"));
-      });
-    });
+    const certificate = tlsResult.certificate;
 
     if (!certificate || Object.keys(certificate).length === 0) {
       return {
@@ -64,9 +121,21 @@ export const validateSSLCertificate = async (rawUrl) => {
     }
 
     const validTo = certificate.valid_to ? new Date(certificate.valid_to) : null;
+    const validFrom = certificate.valid_from ? new Date(certificate.valid_from) : null;
     const now = new Date();
     const reasons = [];
 
+    if (tlsResult.current.protocol !== "https:") {
+      reasons.push("URL redirects to a non-HTTPS endpoint");
+    }
+    if (!tlsResult.authorized) {
+      reasons.push(`SSL trust validation failed${tlsResult.authorizationError ? ` (${tlsResult.authorizationError})` : ""}`);
+    }
+    if (!validFrom || Number.isNaN(validFrom.getTime())) {
+      reasons.push("SSL certificate start date is not readable");
+    } else if (validFrom > now) {
+      reasons.push("SSL certificate is not valid yet");
+    }
     if (!validTo || Number.isNaN(validTo.getTime())) {
       reasons.push("SSL certificate validity period is not readable");
     } else if (validTo < now) {
@@ -78,8 +147,13 @@ export const validateSSLCertificate = async (rawUrl) => {
       reasons,
       metadata: {
         issuer: certificate.issuer?.O || "unknown",
+        validFrom: validFrom ? validFrom.toISOString() : null,
         validTo: validTo ? validTo.toISOString() : null,
-        subject: certificate.subject?.CN || parsed.hostname,
+        subject: certificate.subject?.CN || tlsResult.current.hostname,
+        authorized: tlsResult.authorized,
+        authorizationError: tlsResult.authorizationError || null,
+        redirects: tlsResult.redirects,
+        finalUrl: tlsResult.current.toString(),
       },
     };
   } catch (error) {

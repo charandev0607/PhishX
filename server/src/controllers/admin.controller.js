@@ -65,6 +65,11 @@ export const updateUserRoleController = async (req, res, next) => {
   try {
     const { userId } = req.params;
     const { role } = req.body;
+    if (String(req.user?.id) === String(userId)) {
+      const err = new Error("Admins cannot change their own role");
+      err.statusCode = 400;
+      throw err;
+    }
 
     const targetUser = await User.findById(userId);
     if (!targetUser) {

@@ -81,7 +81,7 @@ async function main() {
   ok("csrf-token 200", csrf.status === 200);
   ok("csrf payload shape", csrf.data?.data?.enabled !== undefined);
   const csrfEnabled = Boolean(csrf.data?.data?.enabled);
-  const csrfToken = csrf.data?.data?.csrfToken;
+  const csrfToken = process.env.CSRF_SHARED_TOKEN;
 
   const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const analystEmail = `smoke_analyst_${suffix}@example.com`;
@@ -120,7 +120,7 @@ async function main() {
   const reuseOld = await jsonFetch("POST", "/auth/refresh", { body: { refreshToken: oldRefresh } });
   ok(
     "old refresh after rotate handled",
-    reuseOld.status === 401 || (reuseOld.status === 200 && !!reuseOld.data?.data?.accessToken)
+    reuseOld.status === 401
   );
 
   const logout = await jsonFetch("POST", "/auth/logout", { body: { refreshToken: refresh } });
@@ -287,6 +287,7 @@ async function main() {
   // Admin flow
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
+  const requireAdminChecks = process.env.SMOKE_REQUIRE_ADMIN !== "false";
   let adminAccess = null;
   if (adminEmail && adminPassword) {
     const al = await jsonFetch("POST", "/auth/login", { body: { email: adminEmail, password: adminPassword } });
@@ -399,9 +400,13 @@ async function main() {
       });
       ok("reports/generate admin → 200", reportGen.status === 200);
       ok("reports/generate has incidentCount", typeof reportGen.data?.data?.incidentCount === "number");
+    } else if (requireAdminChecks) {
+      ok("admin credentials login works", false, "admin credentials failed; cannot run admin checks");
     } else {
       console.warn("Admin credentials failed; skipping admin-only checks");
     }
+  } else if (requireAdminChecks) {
+    ok("admin env configured for smoke tests", false, "set ADMIN_EMAIL and ADMIN_PASSWORD");
   } else {
     console.warn("ADMIN_EMAIL/ADMIN_PASSWORD not set — skipping admin checks");
   }

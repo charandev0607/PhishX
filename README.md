@@ -57,6 +57,11 @@ npm run preview
 ```
 
 ### Backend Setup
+Create env file before starting server:
+```bash
+cp server/.env.example server/.env
+```
+
 Run the Express backend:
 ```bash
 npm run server:dev

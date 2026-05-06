@@ -9,7 +9,7 @@ import ThreatDetails from './components/ThreatDetails';
 import MLEngineerDashboard from './components/MLEngineerDashboard';
 import Auth from './components/Auth';
 
-const AuthenticatedApp = ({ user, activeTab, selectedThreat, onSetTab, onSelectThreat, onBack, onLogout }) => {
+const AuthenticatedApp = ({ user, accessToken, activeTab, selectedThreat, onSetTab, onSelectThreat, onBack, onLogout }) => {
   const isAdmin = user.role === 'admin';
   const canAccessMlDashboard = user.role === 'admin' || user.role === 'ml_engineer';
 
@@ -72,7 +72,7 @@ const AuthenticatedApp = ({ user, activeTab, selectedThreat, onSetTab, onSelectT
               </div>
               <div className="browser-content">
                 <div className="extension-wrapper">
-                  <BrowserExtension onThreatDetected={onSelectThreat} />
+                  <BrowserExtension onThreatDetected={onSelectThreat} userRole={user.role} />
                 </div>
               </div>
             </div>
@@ -80,7 +80,7 @@ const AuthenticatedApp = ({ user, activeTab, selectedThreat, onSetTab, onSelectT
         )}
 
         {activeTab === 'dashboard' && isAdmin && (
-          <AdminDashboard onSelectThreat={onSelectThreat} />
+          <AdminDashboard onSelectThreat={onSelectThreat} accessToken={accessToken} />
         )}
 
         {activeTab === 'ml-engineer' && canAccessMlDashboard && (
@@ -99,7 +99,7 @@ function App() {
   const navigate = useNavigate();
   const initialAuth = (() => {
     try {
-      const saved = localStorage.getItem('phishx_auth');
+      const saved = sessionStorage.getItem('phishx_auth');
       if (!saved) return { user: null, tokens: { accessToken: null, refreshToken: null } };
       const parsed = JSON.parse(saved);
       if (parsed?.user && parsed?.accessToken && parsed?.refreshToken) {
@@ -124,7 +124,7 @@ function App() {
     setUser(null);
     setTokens(empty);
     setApiSession(empty);
-    localStorage.removeItem('phishx_auth');
+    sessionStorage.removeItem('phishx_auth');
     setActiveTab('extension');
     navigate('/login', { replace: true });
   }, [navigate]);
@@ -134,7 +134,7 @@ function App() {
     setApiSessionUpdateHandler((nextTokens) => {
       setTokens(nextTokens);
       if (user) {
-        localStorage.setItem('phishx_auth', JSON.stringify({ user, ...nextTokens }));
+        sessionStorage.setItem('phishx_auth', JSON.stringify({ user, ...nextTokens }));
       }
     });
     setApiUnauthorizedHandler(() => {
@@ -147,7 +147,7 @@ function App() {
     const nextTokens = { accessToken, refreshToken };
     setTokens(nextTokens);
     setApiSession(nextTokens);
-    localStorage.setItem('phishx_auth', JSON.stringify({ user: userData, accessToken, refreshToken }));
+    sessionStorage.setItem('phishx_auth', JSON.stringify({ user: userData, accessToken, refreshToken }));
     setActiveTab(userData.role === 'admin' ? 'dashboard' : userData.role === 'ml_engineer' ? 'ml-engineer' : 'extension');
     navigate('/', { replace: true });
   };
@@ -193,6 +193,7 @@ function App() {
           user ? (
             <AuthenticatedApp
               user={user}
+              accessToken={tokens.accessToken}
               activeTab={activeTab}
               selectedThreat={selectedThreat}
               onSetTab={setActiveTab}

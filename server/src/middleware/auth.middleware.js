@@ -43,7 +43,9 @@ export const authenticate = async (req, _res, next) => {
 
     next();
   } catch (error) {
-    error.statusCode = 401;
+    if (!error.statusCode) {
+      error.statusCode = 401;
+    }
     next(error);
   }
 };
