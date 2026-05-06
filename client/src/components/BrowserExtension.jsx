@@ -11,7 +11,7 @@ const BrowserExtension = ({ onThreatDetected, userRole }) => {
     const [webpageText, setWebpageText] = useState('');
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
-    const canAnalyzeWebpage = userRole === 'admin' || userRole === 'ml_engineer';
+    const canAnalyzeWebpage = userRole === 'admin' || userRole === 'analyst' || userRole === 'ml_engineer';
 
     const startScan = async () => {
         setError('');
@@ -99,14 +99,14 @@ const BrowserExtension = ({ onThreatDetected, userRole }) => {
                                 className={`mode-btn ${mode === 'webpage' ? 'active' : ''}`}
                                 onClick={() => setMode('webpage')}
                                 disabled={!canAnalyzeWebpage}
-                                title={canAnalyzeWebpage ? 'Analyze webpage content' : 'Requires admin or ml_engineer role'}
+                                title={canAnalyzeWebpage ? 'Analyze webpage content' : 'Requires analyst, admin, or ml_engineer role'}
                             >
                                 Webpage
                             </button>
                         </div>
                         {!canAnalyzeWebpage ? (
                             <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
-                                Webpage analysis requires admin or ml_engineer role.
+                                Webpage analysis requires analyst, admin, or ml_engineer role.
                             </p>
                         ) : null}
                         {mode === 'url' ? (

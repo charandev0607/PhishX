@@ -29,6 +29,9 @@ export const schemas = {
   refresh: Joi.object({
     refreshToken: Joi.string().required(),
   }),
+  logout: Joi.object({
+    refreshToken: Joi.string().optional(),
+  }),
   forgotPassword: Joi.object({
     email: Joi.string().email({ tlds: { allow: false } }).required(),
   }),

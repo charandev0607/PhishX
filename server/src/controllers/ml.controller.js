@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { Incident } from "../models/Incident.js";
-import { createFeedback, getLatestDailyMetrics } from "../services/mlMonitoring.service.js";
+import { createFeedback, exportFeedbackToIncrementalDatasets, getLatestDailyMetrics } from "../services/mlMonitoring.service.js";
 import { AuditLog } from "../models/AuditLog.js";
 
 const execFileAsync = promisify(execFile);
@@ -67,6 +67,7 @@ export const mlMetricsController = async (req, res, next) => {
 
 export const mlRetrainController = async (req, res, next) => {
   try {
+    const exportStats = await exportFeedbackToIncrementalDatasets();
     const mlServiceBase = process.env.ML_SERVICE_URL || "http://127.0.0.1:8010";
     const retrainUrl = `${mlServiceBase.replace(/\/$/, "")}/retrain`;
 
@@ -86,12 +87,13 @@ export const mlRetrainController = async (req, res, next) => {
       await execFileAsync(pythonBin, ["MLPipeline/scripts/retrain_all.py"], { cwd: repoRoot, timeout: 20 * 60 * 1000 });
       payload = { mode: "local-fallback", message: "Retraining completed locally" };
     }
+    payload = { ...payload, feedbackExport: exportStats };
 
     await AuditLog.create({
       userId: req.user.id,
       action: "ml:retrain",
       ip: req.ip,
-      metadata: { result: payload?.message || "Retraining started/completed" },
+      metadata: { result: payload?.message || "Retraining started/completed", feedbackExport: exportStats?.exported || {} },
     });
 
     return res.status(200).json({
