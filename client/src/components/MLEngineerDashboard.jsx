@@ -8,6 +8,7 @@ import './MLEngineerDashboard.css';
 
 const MLEngineerDashboard = () => {
     const [isUpdatingModels, setIsUpdatingModels] = useState(false);
+    const [pipelineMessage, setPipelineMessage] = useState('');
     const [activeTab, setActiveTab] = useState('threat-intel');
     const [metricsRows, setMetricsRows] = useState([]);
 
@@ -53,8 +54,16 @@ const MLEngineerDashboard = () => {
 
     const handleRefreshMetrics = async () => {
         setIsUpdatingModels(true);
+        setPipelineMessage('');
         try {
+            const retrainResp = await apiFetch('/api/v1/ml/retrain', { method: 'POST' });
+            const retrainJson = await retrainResp.json().catch(() => ({}));
+            if (!retrainResp.ok) {
+                setPipelineMessage(retrainJson?.message || 'Retraining failed.');
+                return;
+            }
             await loadMetrics();
+            setPipelineMessage(retrainJson?.message || 'Retraining completed and metrics refreshed.');
         } finally {
             setIsUpdatingModels(false);
         }
@@ -148,11 +157,12 @@ const MLEngineerDashboard = () => {
                                     disabled={isUpdatingModels}
                                 >
                                     {isUpdatingModels ? (
-                                        <><RefreshCw className="spin" size={20} /> Refreshing Metrics...</>
+                                        <><RefreshCw className="spin" size={20} /> Running Retraining...</>
                                     ) : (
-                                        <><TrendingUp size={20} /> Refresh ML Metrics</>
+                                        <><TrendingUp size={20} /> Run Retraining + Refresh Metrics</>
                                     )}
                                 </button>
+                                {pipelineMessage ? <p style={{ marginTop: 12, color: 'var(--accent-cyan)' }}>{pipelineMessage}</p> : null}
                             </div>
                         </div>
                     )}

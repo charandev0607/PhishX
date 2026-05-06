@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Monitor, LayoutDashboard, Cpu, LogOut, ShieldAlert } from 'lucide-react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import './App.css';
-import { apiFetch, setApiSession, setApiSessionUpdateHandler } from './lib/api';
+import { apiFetch, setApiSession, setApiSessionUpdateHandler, setApiUnauthorizedHandler } from './lib/api';
 import BrowserExtension from './components/BrowserExtension';
 import AdminDashboard from './components/AdminDashboard';
 import ThreatDetails from './components/ThreatDetails';
@@ -11,6 +11,7 @@ import Auth from './components/Auth';
 
 const AuthenticatedApp = ({ user, activeTab, selectedThreat, onSetTab, onSelectThreat, onBack, onLogout }) => {
   const isAdmin = user.role === 'admin';
+  const canAccessMlDashboard = user.role === 'admin' || user.role === 'ml_engineer';
 
   return (
     <div className="app-container">
@@ -48,13 +49,15 @@ const AuthenticatedApp = ({ user, activeTab, selectedThreat, onSetTab, onSelectT
               >
                 <LayoutDashboard size={16} /> Admin Dashboard
               </button>
-              <button
-                className={`tab-btn ${activeTab === 'ml-engineer' ? 'active' : ''}`}
-                onClick={() => onSetTab('ml-engineer')}
-              >
-                <Cpu size={16} /> ML Engineer Dashboard
-              </button>
             </>
+          ) : null}
+          {canAccessMlDashboard ? (
+            <button
+              className={`tab-btn ${activeTab === 'ml-engineer' ? 'active' : ''}`}
+              onClick={() => onSetTab('ml-engineer')}
+            >
+              <Cpu size={16} /> ML Engineer Dashboard
+            </button>
           ) : null}
         </div>
       </div>
@@ -80,7 +83,7 @@ const AuthenticatedApp = ({ user, activeTab, selectedThreat, onSetTab, onSelectT
           <AdminDashboard onSelectThreat={onSelectThreat} />
         )}
 
-        {activeTab === 'ml-engineer' && isAdmin && (
+        {activeTab === 'ml-engineer' && canAccessMlDashboard && (
           <MLEngineerDashboard />
         )}
 
@@ -116,6 +119,16 @@ function App() {
   const [activeTab, setActiveTab] = useState('extension');
   const [selectedThreat, setSelectedThreat] = useState(null);
 
+  const forceLogout = useCallback(() => {
+    const empty = { accessToken: null, refreshToken: null };
+    setUser(null);
+    setTokens(empty);
+    setApiSession(empty);
+    localStorage.removeItem('phishx_auth');
+    setActiveTab('extension');
+    navigate('/login', { replace: true });
+  }, [navigate]);
+
   useEffect(() => {
     setApiSession(tokens);
     setApiSessionUpdateHandler((nextTokens) => {
@@ -124,7 +137,10 @@ function App() {
         localStorage.setItem('phishx_auth', JSON.stringify({ user, ...nextTokens }));
       }
     });
-  }, [tokens, user]);
+    setApiUnauthorizedHandler(() => {
+      forceLogout();
+    });
+  }, [tokens, user, forceLogout]);
 
   const handleLogin = ({ user: userData, accessToken, refreshToken }) => {
     setUser(userData);
@@ -132,7 +148,7 @@ function App() {
     setTokens(nextTokens);
     setApiSession(nextTokens);
     localStorage.setItem('phishx_auth', JSON.stringify({ user: userData, accessToken, refreshToken }));
-    setActiveTab(userData.role === 'admin' ? 'dashboard' : 'extension');
+    setActiveTab(userData.role === 'admin' ? 'dashboard' : userData.role === 'ml_engineer' ? 'ml-engineer' : 'extension');
     navigate('/', { replace: true });
   };
 
@@ -148,13 +164,7 @@ function App() {
         // ignore
       }
     }
-    const empty = { accessToken: null, refreshToken: null };
-    setUser(null);
-    setTokens(empty);
-    setApiSession(empty);
-    localStorage.removeItem('phishx_auth');
-    setActiveTab('extension');
-    navigate('/login', { replace: true });
+    forceLogout();
   };
 
   const handleSelectThreat = (threat) => {
@@ -164,7 +174,7 @@ function App() {
 
   const handleBack = () => {
     setSelectedThreat(null);
-    setActiveTab(user?.role === 'admin' ? 'dashboard' : 'extension');
+    setActiveTab(user?.role === 'admin' ? 'dashboard' : user?.role === 'ml_engineer' ? 'ml-engineer' : 'extension');
   };
 
   return (

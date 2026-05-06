@@ -9,6 +9,15 @@ const state = {
   byIp: new Map(), // ip -> { resetAt, count, byHash: Map(hash->count) }
 };
 
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, bucket] of state.byIp.entries()) {
+    if (bucket.resetAt <= now) {
+      state.byIp.delete(ip);
+    }
+  }
+}, WINDOW_MS).unref();
+
 const stableHash = (s) => crypto.createHash("sha256").update(String(s || ""), "utf8").digest("hex").slice(0, 16);
 
 const getBucket = (ip) => {

@@ -4,6 +4,7 @@ let session = {
 };
 
 let onSessionUpdate = null;
+let onUnauthorized = null;
 
 export const setApiSession = ({ accessToken, refreshToken }) => {
   session = { accessToken: accessToken || null, refreshToken: refreshToken || null };
@@ -11,6 +12,10 @@ export const setApiSession = ({ accessToken, refreshToken }) => {
 
 export const setApiSessionUpdateHandler = (handler) => {
   onSessionUpdate = handler;
+};
+
+export const setApiUnauthorizedHandler = (handler) => {
+  onUnauthorized = handler;
 };
 
 const refreshAccessToken = async () => {
@@ -42,6 +47,8 @@ export const apiFetch = async (path, options = {}, { retryOn401 = true } = {}) =
     if (refreshed) {
       return apiFetch(path, options, { retryOn401: false });
     }
+    session = { accessToken: null, refreshToken: null };
+    if (onUnauthorized) onUnauthorized();
   }
   return res;
 };

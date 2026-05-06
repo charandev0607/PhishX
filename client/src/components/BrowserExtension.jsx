@@ -8,6 +8,7 @@ const BrowserExtension = ({ onThreatDetected }) => {
     const [url, setUrl] = useState('');
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
+    const [webpageText, setWebpageText] = useState('');
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
 
@@ -16,10 +17,12 @@ const BrowserExtension = ({ onThreatDetected }) => {
         setResult(null);
         setScanState('scanning');
         try {
-            const endpoint = mode === 'url' ? '/api/v1/url-analyze' : '/api/v1/email-analyze';
+            const endpoint = mode === 'url' ? '/api/v1/url-analyze' : mode === 'email' ? '/api/v1/email-analyze' : '/api/v1/webpage-analyze';
             const payload = mode === 'url'
                 ? { url }
-                : { subject, body };
+                : mode === 'email'
+                    ? { subject, body }
+                    : { text: webpageText, sourceUrl: url || undefined };
             const res = await apiFetch(endpoint, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
@@ -35,14 +38,14 @@ const BrowserExtension = ({ onThreatDetected }) => {
             setScanState('complete');
             if (onThreatDetected) {
                 onThreatDetected({
-                    id: `LIVE-${Date.now()}`,
-                    target: mode === 'url' ? url : subject,
+                    id: json.data.incidentId || `LIVE-${Date.now()}`,
+                    target: mode === 'url' ? url : mode === 'email' ? subject : (url || 'Webpage content'),
                     brand: 'Unknown',
                     severity: json.data.score >= 85 ? 'critical' : json.data.score >= 70 ? 'high' : json.data.score >= 40 ? 'medium' : 'low',
                     score: json.data.score,
                     ip: 'N/A',
                     location: 'N/A',
-                    type: mode === 'url' ? 'URL Threat' : 'Email Threat',
+                    type: mode === 'url' ? 'URL Threat' : mode === 'email' ? 'Email Threat' : 'Webpage Threat',
                     status: json.data.status === 'phishing' ? 'Blocked' : json.data.status === 'suspicious' ? 'Quarantined' : 'Allowed',
                     urlAnalysis: [],
                     aiReasoning: (json.data.reasons || []).map((reason) => ({
@@ -90,6 +93,7 @@ const BrowserExtension = ({ onThreatDetected }) => {
                         <div className="role-selector">
                             <button type="button" className={`role-btn ${mode === 'url' ? 'active' : ''}`} onClick={() => setMode('url')}>URL</button>
                             <button type="button" className={`role-btn ${mode === 'email' ? 'active' : ''}`} onClick={() => setMode('email')}>Email</button>
+                            <button type="button" className={`role-btn ${mode === 'webpage' ? 'active' : ''}`} onClick={() => setMode('webpage')}>Webpage</button>
                         </div>
                         {mode === 'url' ? (
                             <input
@@ -99,7 +103,7 @@ const BrowserExtension = ({ onThreatDetected }) => {
                                 value={url}
                                 onChange={(e) => setUrl(e.target.value)}
                             />
-                        ) : (
+                        ) : mode === 'email' ? (
                             <>
                                 <input
                                     className="form-input"
@@ -116,10 +120,27 @@ const BrowserExtension = ({ onThreatDetected }) => {
                                     onChange={(e) => setBody(e.target.value)}
                                 />
                             </>
+                        ) : (
+                            <>
+                                <input
+                                    className="form-input"
+                                    type="url"
+                                    placeholder="Optional source URL (https://example.com)"
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                />
+                                <textarea
+                                    className="form-input"
+                                    rows={6}
+                                    placeholder="Paste webpage text/content to analyze"
+                                    value={webpageText}
+                                    onChange={(e) => setWebpageText(e.target.value)}
+                                />
+                            </>
                         )}
                         {error && <p style={{ color: '#ff5f7a' }}>{error}</p>}
                         <button className="btn-primary scan-btn" onClick={startScan}>
-                            Scan {mode === 'url' ? 'URL' : 'Email'}
+                            Scan {mode === 'url' ? 'URL' : mode === 'email' ? 'Email' : 'Webpage'}
                         </button>
                     </div>
                 </div>
@@ -186,6 +207,41 @@ const BrowserExtension = ({ onThreatDetected }) => {
                         <p style={{ marginTop: '12px', color: 'var(--text-secondary)' }}>
                             Recommended Action: <strong style={{ color: 'var(--text-primary)' }}>Review and quarantine if suspicious.</strong>
                         </p>
+                    </div>
+
+                    <div className="ai-explanation glass-panel-light fade-in delay-1" style={{ marginTop: '12px' }}>
+                        <div className="ai-header">
+                            <h4>Detection Details</h4>
+                        </div>
+                        <div style={{ display: 'grid', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                            <p><strong style={{ color: 'var(--text-primary)' }}>Incident ID:</strong> {result.incidentId || 'N/A'}</p>
+                            <p><strong style={{ color: 'var(--text-primary)' }}>Status:</strong> {result.status || 'N/A'}</p>
+                            <p><strong style={{ color: 'var(--text-primary)' }}>Final Score:</strong> {result.score ?? 'N/A'}</p>
+                            <p><strong style={{ color: 'var(--text-primary)' }}>Rule Score:</strong> {result.metadata?.ruleScore ?? 'N/A'}</p>
+                            <p><strong style={{ color: 'var(--text-primary)' }}>ML Score:</strong> {result.metadata?.mlScore ?? 'N/A'}</p>
+                            {mode === 'url' ? (
+                                <>
+                                    <p><strong style={{ color: 'var(--text-primary)' }}>SSL:</strong> {result.metadata?.ssl?.valid === false ? 'Invalid / Failed' : 'Valid / Passed'}</p>
+                                    <p><strong style={{ color: 'var(--text-primary)' }}>URL Length:</strong> {result.metadata?.features?.length ?? 'N/A'}</p>
+                                    <p><strong style={{ color: 'var(--text-primary)' }}>Entropy:</strong> {result.metadata?.features?.entropy ?? 'N/A'}</p>
+                                    <p><strong style={{ color: 'var(--text-primary)' }}>Special Characters:</strong> {result.metadata?.features?.specialChars ?? 'N/A'}</p>
+                                    <p><strong style={{ color: 'var(--text-primary)' }}>Subdomain Count:</strong> {result.metadata?.features?.subdomainCount ?? 'N/A'}</p>
+                                    <p><strong style={{ color: 'var(--text-primary)' }}>Hostname:</strong> {result.metadata?.features?.hostname ?? 'N/A'}</p>
+                                </>
+                            ) : null}
+                            {mode === 'email' ? (
+                                <>
+                                    <p><strong style={{ color: 'var(--text-primary)' }}>Email Links:</strong> {result.metadata?.linkCount ?? 'N/A'}</p>
+                                    <p><strong style={{ color: 'var(--text-primary)' }}>Subject Length:</strong> {result.metadata?.subjectLength ?? 'N/A'}</p>
+                                    <p><strong style={{ color: 'var(--text-primary)' }}>Body Length:</strong> {result.metadata?.bodyLength ?? 'N/A'}</p>
+                                </>
+                            ) : null}
+                            {mode === 'webpage' ? (
+                                <>
+                                    <p><strong style={{ color: 'var(--text-primary)' }}>Text Length:</strong> {result.metadata?.textLength ?? 'N/A'}</p>
+                                </>
+                            ) : null}
+                        </div>
                     </div>
 
                     <div className="ext-actions fade-in delay-2">

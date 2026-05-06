@@ -1,4 +1,15 @@
 services:
+  ml:
+    build:
+      context: ./MLPipeline
+      dockerfile: Dockerfile
+    container_name: phishx-ml
+    environment:
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8010:8010"
+    restart: unless-stopped
+
   server:
     build:
       context: ./server
@@ -8,6 +19,11 @@ services:
       - "5000:5000"
     env_file:
       - ./server/.env
+    environment:
+      - CLIENT_ORIGIN=http://localhost:8080
+      - ML_SERVICE_URL=http://ml:8010
+    depends_on:
+      - ml
     restart: unless-stopped
 
   client:

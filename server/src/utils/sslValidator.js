@@ -1,5 +1,7 @@
 import tls from "tls";
 
+const DEV_SKIP_TLDS = [".example", ".test", ".invalid", ".localhost"];
+
 export const validateSSLCertificate = async (rawUrl) => {
   try {
     const parsed = new URL(rawUrl);
@@ -9,6 +11,19 @@ export const validateSSLCertificate = async (rawUrl) => {
         reasons: ["URL is not using HTTPS"],
         metadata: {
           protocol: parsed.protocol,
+        },
+      };
+    }
+
+    const shouldSkipDevCheck = process.env.NODE_ENV !== "production" && process.env.SSL_SKIP_DEV_CHECK === "true";
+    const isLikelyTestDomain = DEV_SKIP_TLDS.some((tld) => parsed.hostname.endsWith(tld));
+    if (shouldSkipDevCheck && isLikelyTestDomain) {
+      return {
+        valid: true,
+        reasons: ["SSL validation skipped for development test domain"],
+        metadata: {
+          skipped: true,
+          hostname: parsed.hostname,
         },
       };
     }

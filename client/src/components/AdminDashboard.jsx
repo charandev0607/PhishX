@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { AlertTriangle, Bell, FileText, Search, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { io } from 'socket.io-client';
 import { apiFetch } from '../lib/api';
 import './AdminDashboard.css';
 
@@ -28,12 +29,14 @@ const CustomTooltip = ({ active, payload, label }) => {
 const AdminDashboard = ({ onSelectThreat }) => {
   const [incidents, setIncidents] = useState([]);
   const [systemHealth, setSystemHealth] = useState(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
       try {
         const [incResp, healthResp] = await Promise.all([
-          apiFetch('/api/v1/incidents?limit=200'),
+          apiFetch('/api/v1/incidents?limit=500'),
           apiFetch('/api/v1/system/health'),
         ]);
         if (incResp.ok) {
@@ -50,7 +53,67 @@ const AdminDashboard = ({ onSelectThreat }) => {
       }
     };
     loadData();
+    const intervalId = setInterval(loadData, 15000);
+    return () => clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    const socket = io('/', {
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+    });
+
+    socket.on('incident:new', (incident) => {
+      const incidentId = incident?._id || incident?.id;
+      if (!incidentId) return;
+      setIncidents((prev) => {
+        const normalized = { ...incident, _id: incidentId };
+        const filtered = prev.filter((item) => item._id !== incidentId);
+        return [normalized, ...filtered].slice(0, 500);
+      });
+    });
+
+    socket.on('system:health', (health) => {
+      if (health) setSystemHealth(health);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  const handleGenerateReport = async () => {
+    setReportBusy(true);
+    setReportError('');
+    try {
+      const now = new Date();
+      const startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const endDate = now.toISOString();
+      const resp = await apiFetch('/api/v1/reports/generate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ startDate, endDate, type: 'phishing' }),
+      });
+      const json = await resp.json();
+      if (!resp.ok || !json?.data) {
+        setReportError(json?.message || 'Unable to generate report.');
+        return;
+      }
+      const blob = new Blob([JSON.stringify(json.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `phishx-report-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setReportError('Unable to generate report.');
+    } finally {
+      setReportBusy(false);
+    }
+  };
 
   const mappedThreatFeed = useMemo(
     () =>
@@ -72,6 +135,8 @@ const AdminDashboard = ({ onSelectThreat }) => {
       })),
     [incidents]
   );
+
+  const visibleThreatFeed = useMemo(() => mappedThreatFeed.slice(0, 100), [mappedThreatFeed]);
 
   const trendData = useMemo(() => {
     const byHour = new Map();
@@ -144,6 +209,12 @@ const AdminDashboard = ({ onSelectThreat }) => {
           </div>
         </div>
 
+        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+          <span className="status-badge blocked">Security Overview</span>
+          <span className="status-badge quarantined">Incident Analytics</span>
+          <span className="status-badge allowed">Report Center</span>
+        </div>
+
         <div className="dashboard-content">
           <div className="charts-column fade-in">
             <div className="charts-section glass-panel">
@@ -184,7 +255,7 @@ const AdminDashboard = ({ onSelectThreat }) => {
               <span className="live-indicator">LIVE</span>
             </div>
             <div className="feed-list">
-              {mappedThreatFeed.map((threat) => (
+              {visibleThreatFeed.map((threat) => (
                 <div
                   key={threat.id}
                   className={`feed-item ${threat.severity}`}
@@ -202,11 +273,17 @@ const AdminDashboard = ({ onSelectThreat }) => {
                 </div>
               ))}
             </div>
+            {mappedThreatFeed.length > visibleThreatFeed.length ? (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 8 }}>
+                Showing latest {visibleThreatFeed.length} of {mappedThreatFeed.length} incidents.
+              </p>
+            ) : null}
 
-            <button className="btn-primary" type="button" style={{ marginTop: 12 }}>
+            <button className="btn-primary" type="button" style={{ marginTop: 12 }} onClick={handleGenerateReport} disabled={reportBusy}>
               <FileText size={16} style={{ marginRight: 8 }} />
-              Generate Reports
+              {reportBusy ? 'Generating...' : 'Generate Reports'}
             </button>
+            {reportError ? <p style={{ color: '#ff5f7a', marginTop: 10 }}>{reportError}</p> : null}
           </div>
         </div>
       </main>

@@ -24,6 +24,11 @@ const mlDailyMetricsSchema = new mongoose.Schema(
         falsePositives: { type: Number, default: 0 },
         falseNegatives: { type: Number, default: 0 },
       },
+      webpage: {
+        feedbackCount: { type: Number, default: 0 },
+        falsePositives: { type: Number, default: 0 },
+        falseNegatives: { type: Number, default: 0 },
+      },
     },
     updatedAt: { type: Date, default: Date.now },
   },

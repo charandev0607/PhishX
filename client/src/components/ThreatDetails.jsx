@@ -1,5 +1,8 @@
 import React from 'react';
 import { ArrowLeft, FileText, AlertOctagon, Code, MapPin, Search, ShieldCheck } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { apiFetch } from '../lib/api';
 import './ThreatDetails.css';
 
 const ThreatDetails = ({ threat, onBack }) => {
@@ -64,6 +67,68 @@ const ThreatDetails = ({ threat, onBack }) => {
     return 'accent';
   };
 
+  const handleExport = () => {
+    const doc = new jsPDF();
+    const target = displayThreat.target || displayThreat.input || 'N/A';
+    const generatedAt = new Date().toLocaleString();
+
+    doc.setFontSize(16);
+    doc.text('PhishX Threat Forensic Report', 14, 18);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${generatedAt}`, 14, 24);
+
+    autoTable(doc, {
+      startY: 30,
+      head: [['Field', 'Value']],
+      body: [
+        ['Threat ID', String(displayThreat.id || 'N/A')],
+        ['Target', String(target)],
+        ['Type', String(displayThreat.type || 'N/A')],
+        ['Status', String(displayThreat.status || 'N/A')],
+        ['Severity', String(displayThreat.severity || 'N/A')],
+        ['Score', String(displayThreat.score ?? 'N/A')],
+        ['Brand', String(displayThreat.brand || 'N/A')],
+        ['IP', String(displayThreat.ip || 'N/A')],
+        ['Location', String(displayThreat.location || 'N/A')],
+      ],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [0, 102, 255] },
+    });
+
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 8,
+      head: [['AI Detection Reasons']],
+      body: (displayThreat.reasons && displayThreat.reasons.length ? displayThreat.reasons : ['No reasons available']).map((reason) => [String(reason)]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [0, 179, 199] },
+    });
+
+    doc.save(`threat-${displayThreat.id || 'export'}.pdf`);
+  };
+
+  const handleQuarantine = async () => {
+    const target = displayThreat.target || displayThreat.input || '';
+    if (!target) return;
+    try {
+      const resp = await apiFetch('/api/v1/report-link', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          url: target,
+          description: `Quarantine requested from threat details (${displayThreat.id || 'N/A'})`,
+        }),
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        alert(json?.message || 'Unable to quarantine this target.');
+        return;
+      }
+      alert('Quarantine request submitted successfully.');
+    } catch {
+      alert('Unable to quarantine this target.');
+    }
+  };
+
   return (
     <div className="threat-layout">
       {/* Header */}
@@ -78,11 +143,11 @@ const ThreatDetails = ({ threat, onBack }) => {
           </div>
         </div>
         <div className="threat-actions">
-          <button className="btn-outline" type="button">
+          <button className="btn-outline" type="button" onClick={handleExport}>
             <FileText size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
             Export PDF
           </button>
-          <button className="btn-danger" type="button">
+          <button className="btn-danger" type="button" onClick={handleQuarantine}>
             <AlertOctagon size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
             Quarantine Domain
           </button>
