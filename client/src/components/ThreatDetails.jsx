@@ -6,6 +6,14 @@ import { apiFetch } from '../lib/api';
 import './ThreatDetails.css';
 
 const ThreatDetails = ({ threat, onBack }) => {
+  const isHttpUrl = (value) => {
+    try {
+      const parsed = new URL(String(value || ''));
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
   if (!threat) {
     return (
       <div className="threat-layout">
@@ -109,6 +117,10 @@ const ThreatDetails = ({ threat, onBack }) => {
   const handleQuarantine = async () => {
     const target = displayThreat.target || displayThreat.input || '';
     if (!target) return;
+    if (!isHttpUrl(target)) {
+      alert('Quarantine is only available for URL-based incidents.');
+      return;
+    }
     try {
       const resp = await apiFetch('/api/v1/report-link', {
         method: 'POST',

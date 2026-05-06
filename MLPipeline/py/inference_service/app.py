@@ -70,6 +70,17 @@ _cache: Dict[str, Any] = {}
 _cache_lock = threading.Lock()
 
 
+def _get_or_load_model(cache_key: str, model_name: str):
+    cached = _cache.get(cache_key)
+    if cached is not None:
+        return cached
+    loaded = _load_latest(model_name)
+    with _cache_lock:
+        if cache_key not in _cache:
+            _cache[cache_key] = loaded
+        return _cache[cache_key]
+
+
 @app.get("/health")
 def health():
     return {"ok": True}
@@ -77,10 +88,7 @@ def health():
 
 @app.post("/score/url")
 def score_url(req: UrlReq):
-    with _cache_lock:
-        if "url_logreg" not in _cache:
-            _cache["url_logreg"] = _load_latest("url_logreg")
-        version, model, card = _cache["url_logreg"]
+    version, model, card = _get_or_load_model("url_logreg", "url_logreg")
     vec, feats = featurize_url(req.url)
     X = np.asarray([vec], dtype=np.float32)
     p = float(model.predict_proba(X)[:, 1][0])
@@ -89,10 +97,7 @@ def score_url(req: UrlReq):
 
 @app.post("/score/email")
 def score_email(req: EmailReq):
-    with _cache_lock:
-        if "email_tfidf_logreg" not in _cache:
-            _cache["email_tfidf_logreg"] = _load_latest("email_tfidf_logreg")
-        version, model, card = _cache["email_tfidf_logreg"]
+    version, model, card = _get_or_load_model("email_tfidf_logreg", "email_tfidf_logreg")
     text = f"{req.subject}\n{req.body}"
     p = float(model.predict_proba([text])[:, 1][0])
     return {"model": "email_tfidf_logreg", "version": version, "score": p, "threshold": float(card.get("threshold", 0.5))}
@@ -100,10 +105,7 @@ def score_email(req: EmailReq):
 
 @app.post("/score/webpage")
 def score_webpage(req: WebReq):
-    with _cache_lock:
-        if "webpage_signals_rf" not in _cache:
-            _cache["webpage_signals_rf"] = _load_latest("webpage_signals_rf")
-        version, model, card = _cache["webpage_signals_rf"]
+    version, model, card = _get_or_load_model("webpage_signals_rf", "webpage_signals_rf")
     vec, feats = featurize_text(req.text)
     X = np.asarray([vec], dtype=np.float32)
     p = float(model.predict_proba(X)[:, 1][0])

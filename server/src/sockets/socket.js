@@ -1,4 +1,7 @@
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
+import { User } from "../models/User.js";
+import { findActiveSession } from "../services/session.service.js";
 import { setLatestHealth } from "../services/realtime.service.js";
 
 let healthInterval = null;
@@ -47,6 +50,30 @@ export const initSocket = (httpServer) => {
       },
       credentials: true,
     },
+  });
+
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token;
+      if (!token) {
+        return next(new Error("Unauthorized socket connection"));
+      }
+      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+      if (!decoded?.sid || !decoded?.sub) {
+        return next(new Error("Unauthorized socket connection"));
+      }
+      const session = await findActiveSession(decoded.sid);
+      if (!session || String(session.userId) !== String(decoded.sub)) {
+        return next(new Error("Unauthorized socket connection"));
+      }
+      const user = await User.findById(decoded.sub).select("role");
+      if (!user || !["admin", "analyst", "ml_engineer"].includes(user.role)) {
+        return next(new Error("Forbidden socket role"));
+      }
+      return next();
+    } catch {
+      return next(new Error("Unauthorized socket connection"));
+    }
   });
 
   io.on("connection", (socket) => {

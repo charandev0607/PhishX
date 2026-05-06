@@ -26,7 +26,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-const AdminDashboard = ({ onSelectThreat }) => {
+const AdminDashboard = ({ onSelectThreat, accessToken }) => {
   const [incidents, setIncidents] = useState([]);
   const [systemHealth, setSystemHealth] = useState(null);
   const [reportBusy, setReportBusy] = useState(false);
@@ -61,6 +61,7 @@ const AdminDashboard = ({ onSelectThreat }) => {
     const socket = io('/', {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
+      auth: accessToken ? { token: accessToken } : undefined,
     });
 
     socket.on('incident:new', (incident) => {

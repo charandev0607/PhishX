@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { apiFetch } from '../lib/api';
 import './BrowserExtension.css';
 
-const BrowserExtension = ({ onThreatDetected }) => {
+const BrowserExtension = ({ onThreatDetected, userRole }) => {
     const [scanState, setScanState] = useState('idle'); // idle, scanning, analyzing, complete
     const [mode, setMode] = useState('url');
     const [url, setUrl] = useState('');
@@ -11,6 +11,7 @@ const BrowserExtension = ({ onThreatDetected }) => {
     const [webpageText, setWebpageText] = useState('');
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
+    const canAnalyzeWebpage = userRole === 'admin' || userRole === 'ml_engineer';
 
     const startScan = async () => {
         setError('');
@@ -93,8 +94,21 @@ const BrowserExtension = ({ onThreatDetected }) => {
                         <div className="analysis-mode-toggle">
                             <button type="button" className={`mode-btn ${mode === 'url' ? 'active' : ''}`} onClick={() => setMode('url')}>URL</button>
                             <button type="button" className={`mode-btn ${mode === 'email' ? 'active' : ''}`} onClick={() => setMode('email')}>Email</button>
-                            <button type="button" className={`mode-btn ${mode === 'webpage' ? 'active' : ''}`} onClick={() => setMode('webpage')}>Webpage</button>
+                            <button
+                                type="button"
+                                className={`mode-btn ${mode === 'webpage' ? 'active' : ''}`}
+                                onClick={() => setMode('webpage')}
+                                disabled={!canAnalyzeWebpage}
+                                title={canAnalyzeWebpage ? 'Analyze webpage content' : 'Requires admin or ml_engineer role'}
+                            >
+                                Webpage
+                            </button>
                         </div>
+                        {!canAnalyzeWebpage ? (
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                                Webpage analysis requires admin or ml_engineer role.
+                            </p>
+                        ) : null}
                         {mode === 'url' ? (
                             <input
                                 className="scan-input"

@@ -7,7 +7,6 @@ router.get("/csrf-token", (_req, res) => {
     success: true,
     message: "CSRF token fetched",
     data: {
-      csrfToken: process.env.CSRF_SHARED_TOKEN || null,
       enabled: process.env.CSRF_ENABLED === "true",
     },
   });

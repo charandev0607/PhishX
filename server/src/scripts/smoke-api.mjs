@@ -81,7 +81,7 @@ async function main() {
   ok("csrf-token 200", csrf.status === 200);
   ok("csrf payload shape", csrf.data?.data?.enabled !== undefined);
   const csrfEnabled = Boolean(csrf.data?.data?.enabled);
-  const csrfToken = csrf.data?.data?.csrfToken;
+  const csrfToken = process.env.CSRF_SHARED_TOKEN;
 
   const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const analystEmail = `smoke_analyst_${suffix}@example.com`;
@@ -120,7 +120,7 @@ async function main() {
   const reuseOld = await jsonFetch("POST", "/auth/refresh", { body: { refreshToken: oldRefresh } });
   ok(
     "old refresh after rotate handled",
-    reuseOld.status === 401 || (reuseOld.status === 200 && !!reuseOld.data?.data?.accessToken)
+    reuseOld.status === 401
   );
 
   const logout = await jsonFetch("POST", "/auth/logout", { body: { refreshToken: refresh } });

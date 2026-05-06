@@ -37,6 +37,8 @@ const Auth = ({ onLogin }) => {
                 setSuccess('Reset token issued. Use it to set a new password.');
                 if (json?.data?.resetToken) {
                     setIssuedResetToken(json.data.resetToken);
+                } else {
+                    setIssuedResetToken('');
                 }
                 setMode('reset');
             } catch {
@@ -190,7 +192,11 @@ const Auth = ({ onLogin }) => {
                                 <p style={{ color: '#00f3ff', marginTop: '8px', fontSize: '0.85rem', wordBreak: 'break-all' }}>
                                     Dev reset token: {issuedResetToken}
                                 </p>
-                            ) : null}
+                            ) : (
+                                <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '0.85rem' }}>
+                                    In production, reset tokens are delivered out-of-band (email/SMS) and are not shown in the UI.
+                                </p>
+                            )}
                         </>
                     )}
 

@@ -12,4 +12,4 @@ COPY . /app/MLPipeline
 
 EXPOSE 8010
 
-CMD ["sh", "-c", "python /app/MLPipeline/scripts/generate_synthetic_datasets.py && python /app/MLPipeline/scripts/train_all.py && uvicorn inference_service.app:app --app-dir /app/MLPipeline/py --host 0.0.0.0 --port 8010"]
+CMD ["sh", "-c", "python /app/MLPipeline/scripts/retrain_all.py && uvicorn inference_service.app:app --app-dir /app/MLPipeline/py --host 0.0.0.0 --port 8010"]

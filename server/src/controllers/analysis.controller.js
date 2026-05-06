@@ -259,14 +259,14 @@ export const systemHealthController = async (req, res, next) => {
       message: "System healthy",
       data: {
         uptime,
-        memory: {
+        memory: process.env.NODE_ENV === "production" ? undefined : {
           rss: memory.rss,
           heapTotal: memory.heapTotal,
           heapUsed: memory.heapUsed,
           external: memory.external,
         },
         responseTime: Number(elapsedMs.toFixed(2)),
-        apiPerformance: getApiMetricsSnapshot(),
+        apiPerformance: process.env.NODE_ENV === "production" ? undefined : getApiMetricsSnapshot(),
       },
     });
   } catch (error) {
