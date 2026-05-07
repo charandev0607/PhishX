@@ -28,7 +28,7 @@ export const getIncidentEventsSince = (since) => {
     return incidentQueue.slice(-50);
   }
 
-  const sinceDate = new Date(since);
+  const sinceDate = since instanceof Date ? since : new Date(since);
   if (Number.isNaN(sinceDate.getTime())) {
     return incidentQueue.slice(-50);
   }

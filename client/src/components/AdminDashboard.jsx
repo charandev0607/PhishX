@@ -58,18 +58,10 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
   }, []);
 
   useEffect(() => {
-    if (!accessToken) {
-      return undefined;
-    }
-
     const socket = io('/', {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
-      auth: { token: accessToken },
-      reconnection: true,
-      reconnectionAttempts: 8,
-      reconnectionDelay: 500,
-      reconnectionDelayMax: 5000,
+      auth: accessToken ? { token: accessToken } : undefined,
     });
 
     socket.on('incident:new', (incident) => {
@@ -86,15 +78,10 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
       if (health) setSystemHealth(health);
     });
 
-    socket.on('connect_error', () => {
-      // Most commonly: expired/invalid token. Let normal API 401 handling log the user out.
-      socket.disconnect();
-    });
-
     return () => {
       socket.disconnect();
     };
-  }, [accessToken]);
+  }, []);
 
   const handleGenerateReport = async () => {
     setReportBusy(true);

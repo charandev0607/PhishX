@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { execFile } from "node:child_process";
+import { access } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -83,6 +84,12 @@ export const mlRetrainController = async (req, res, next) => {
       }
     } catch (remoteError) {
       // Fallback for local development where Python service may not expose /retrain.
+      const retrainScriptPath = resolve(repoRoot, "MLPipeline", "scripts", "retrain_all.py");
+      try {
+        await access(retrainScriptPath);
+      } catch {
+        throw remoteError;
+      }
       const pythonBin = process.platform === "win32" ? "python" : "python3";
       await execFileAsync(pythonBin, ["MLPipeline/scripts/retrain_all.py"], { cwd: repoRoot, timeout: 20 * 60 * 1000 });
       payload = { mode: "local-fallback", message: "Retraining completed locally" };

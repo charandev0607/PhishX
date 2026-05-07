@@ -36,9 +36,6 @@ export const analyzeUrl = async ({ url, pageHtml = "", scriptContent = "" }) => 
   const status = classifyRisk(finalScore);
 
   const reasons = [...ruleResult.reasons];
-  if (mlUnavailable) {
-    reasons.push("ML scoring service unavailable; using URL heuristics only");
-  }
   reasons.push(...credentialSignals.reasons);
   if (mlScore >= 70) reasons.push("ML model flagged high phishing probability");
   if (mlScore >= 40 && mlScore < 70) reasons.push("ML model flagged suspicious pattern");
@@ -55,6 +52,10 @@ export const analyzeUrl = async ({ url, pageHtml = "", scriptContent = "" }) => 
       ssl: sslResult.metadata,
       credentialSignals: {
         scoreDelta: credentialSignals.scoreDelta,
+      },
+      ml: {
+        available: !mlUnavailable,
+        fallback: mlUnavailable ? "heuristics_only" : "ml_plus_heuristics",
       },
     },
   };
