@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { AlertTriangle, Bell, FileText, Search, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Bell, FileText, Search, ShieldAlert, ShieldCheck, Users, Settings, LayoutDashboard } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { apiFetch } from '../lib/api';
 import './AdminDashboard.css';
@@ -31,6 +31,13 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
   const [systemHealth, setSystemHealth] = useState(null);
   const [reportBusy, setReportBusy] = useState(false);
   const [reportError, setReportError] = useState('');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState('');
+  const [userPage, setUserPage] = useState(1);
+  const [userTotal, setUserTotal] = useState(0);
+  const [roleUpdateBusy, setRoleUpdateBusy] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -56,6 +63,53 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
     const intervalId = setInterval(loadData, 15000);
     return () => clearInterval(intervalId);
   }, []);
+
+  const fetchUsers = async (page = 1) => {
+    setUsersLoading(true);
+    setUsersError('');
+    try {
+      const resp = await apiFetch(`/api/v1/admin/users?page=${page}&limit=10`);
+      const json = await resp.json();
+      if (resp.ok) {
+        setUsers(json.data.items);
+        setUserTotal(json.data.pagination.total);
+        setUserPage(json.data.pagination.page);
+      } else {
+        setUsersError(json.message || 'Failed to fetch users');
+      }
+    } catch (err) {
+      setUsersError('Network error while fetching users');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers(userPage);
+    }
+  }, [activeTab, userPage]);
+
+  const handleRoleChange = async (userId, newRole) => {
+    setRoleUpdateBusy(userId);
+    try {
+      const resp = await apiFetch(`/api/v1/admin/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (resp.ok) {
+        setUsers((prev) => prev.map((u) => (u._id === userId ? { ...u, role: newRole } : u)));
+      } else {
+        const json = await resp.json();
+        alert(json.message || 'Failed to update role');
+      }
+    } catch (err) {
+      alert('Error updating role');
+    } finally {
+      setRoleUpdateBusy(null);
+    }
+  };
 
   useEffect(() => {
     if (!accessToken) return undefined;
@@ -178,12 +232,35 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
           <h2>Sentinel AI</h2>
           <span className="badge">ENTERPRISE</span>
         </div>
+        <nav className="nav-menu">
+          <div
+            className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            <LayoutDashboard size={20} />
+            <span>Overview</span>
+          </div>
+          <div
+            className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
+            onClick={() => setActiveTab('users')}
+          >
+            <Users size={20} />
+            <span>User Roles</span>
+          </div>
+          <div className="nav-item">
+            <Settings size={20} />
+            <span>Settings</span>
+          </div>
+        </nav>
+
         <div className="system-health">
           <div className="health-header">
             <span>System Health</span>
             <span className="status-good">Optimal</span>
           </div>
-          <div className="progress-bg"><div className="progress-fill" style={{ width: '98%' }}></div></div>
+          <div className="progress-bg">
+            <div className="progress-fill" style={{ width: '98%' }}></div>
+          </div>
           <p>AI Core: Online • Latency: {systemHealth?.responseTime ?? 'N/A'}ms</p>
         </div>
       </aside>
@@ -199,100 +276,193 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
           </div>
         </header>
 
-        <div className="stats-grid">
-          <div className="stat-card glass-panel-light">
-            <div className="stat-header"><h3>Total Threats</h3><ShieldAlert size={20} /></div>
-            <div className="stat-value">{mappedThreatFeed.length}</div>
-          </div>
-          <div className="stat-card glass-panel-light highlight-danger">
-            <div className="stat-header"><h3>Phishing Blocked</h3><AlertTriangle size={20} /></div>
-            <div className="stat-value">{mappedThreatFeed.filter((t) => t.status === 'Blocked').length}</div>
-          </div>
-          <div className="stat-card glass-panel-light highlight-cyan">
-            <div className="stat-header"><h3>Detection Accuracy</h3><ShieldCheck size={20} /></div>
-            <div className="stat-value">
-              {mappedThreatFeed.length ? `${Math.round((mappedThreatFeed.filter((t) => t.status !== 'Allowed').length / mappedThreatFeed.length) * 100)}%` : 'N/A'}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-          <span className="status-badge blocked">Security Overview</span>
-          <span className="status-badge quarantined">Incident Analytics</span>
-          <span className="status-badge allowed">Report Center</span>
-        </div>
-
-        <div className="dashboard-content">
-          <div className="charts-column fade-in">
-            <div className="charts-section glass-panel">
-              <div className="section-header"><h3>Threat Volume Trend</h3></div>
-              <div className="chart-container" style={{ height: '280px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" />
-                    <YAxis />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="threats" stroke="#00f3ff" fill="#00f3ff33" />
-                  </AreaChart>
-                </ResponsiveContainer>
+        {activeTab === 'overview' ? (
+          <>
+            <div className="stats-grid">
+              <div className="stat-card glass-panel-light">
+                <div className="stat-header">
+                  <h3>Total Threats</h3>
+                  <ShieldAlert size={20} />
+                </div>
+                <div className="stat-value">{mappedThreatFeed.length}</div>
+              </div>
+              <div className="stat-card glass-panel-light highlight-danger">
+                <div className="stat-header">
+                  <h3>Phishing Blocked</h3>
+                  <AlertTriangle size={20} />
+                </div>
+                <div className="stat-value">{mappedThreatFeed.filter((t) => t.status === 'Blocked').length}</div>
+              </div>
+              <div className="stat-card glass-panel-light highlight-cyan">
+                <div className="stat-header">
+                  <h3>Detection Accuracy</h3>
+                  <ShieldCheck size={20} />
+                </div>
+                <div className="stat-value">
+                  {mappedThreatFeed.length
+                    ? `${Math.round((mappedThreatFeed.filter((t) => t.status !== 'Allowed').length / mappedThreatFeed.length) * 100)}%`
+                    : 'N/A'}
+                </div>
               </div>
             </div>
 
-            <div className="chart-card glass-panel">
-              <div className="section-header"><h3>Risk Distribution</h3></div>
-              <div className="chart-container" style={{ height: '220px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={riskDistributionData} dataKey="value" cx="50%" cy="50%" outerRadius={80}>
-                      {riskDistributionData.map((entry, idx) => (
-                        <Cell key={idx} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+              <span className="status-badge blocked">Security Overview</span>
+              <span className="status-badge quarantined">Incident Analytics</span>
+              <span className="status-badge allowed">Report Center</span>
             </div>
-          </div>
 
-          <div className="live-feed glass-panel">
-            <div className="section-header">
-              <h3>Live Threat Feed</h3>
-              <span className="live-indicator">LIVE</span>
-            </div>
-            <div className="feed-list">
-              {visibleThreatFeed.map((threat) => (
-                <div
-                  key={threat.id}
-                  className={`feed-item ${threat.severity}`}
-                  onClick={() => onSelectThreat && onSelectThreat(threat)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="feed-time">{threat.time}</div>
-                  <div className="feed-details">
-                    <span className="type">{threat.type}</span>
-                    <span className="target">Target: {threat.target}</span>
+            <div className="dashboard-content">
+              <div className="charts-column fade-in">
+                <div className="charts-section glass-panel">
+                  <div className="section-header">
+                    <h3>Threat Volume Trend</h3>
                   </div>
-                  <div className="feed-action">
-                    <span className={`status-badge ${threat.status.toLowerCase()}`}>{threat.status}</span>
+                  <div className="chart-container" style={{ height: '280px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={trendData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="time" />
+                        <YAxis />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Area type="monotone" dataKey="threats" stroke="#00f3ff" fill="#00f3ff33" />
+                      </AreaChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
-              ))}
-            </div>
-            {mappedThreatFeed.length > visibleThreatFeed.length ? (
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 8 }}>
-                Showing latest {visibleThreatFeed.length} of {mappedThreatFeed.length} incidents.
-              </p>
-            ) : null}
 
-            <button className="btn-primary" type="button" style={{ marginTop: 12 }} onClick={handleGenerateReport} disabled={reportBusy}>
-              <FileText size={16} style={{ marginRight: 8 }} />
-              {reportBusy ? 'Generating...' : 'Generate Reports'}
-            </button>
-            {reportError ? <p style={{ color: '#ff5f7a', marginTop: 10 }}>{reportError}</p> : null}
+                <div className="chart-card glass-panel">
+                  <div className="section-header">
+                    <h3>Risk Distribution</h3>
+                  </div>
+                  <div className="chart-container" style={{ height: '220px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={riskDistributionData} dataKey="value" cx="50%" cy="50%" outerRadius={80}>
+                          {riskDistributionData.map((entry, idx) => (
+                            <Cell key={idx} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              <div className="live-feed glass-panel">
+                <div className="section-header">
+                  <h3>Live Threat Feed</h3>
+                  <span className="live-indicator">LIVE</span>
+                </div>
+                <div className="feed-list">
+                  {visibleThreatFeed.map((threat) => (
+                    <div
+                      key={threat.id}
+                      className={`feed-item ${threat.severity}`}
+                      onClick={() => onSelectThreat && onSelectThreat(threat)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="feed-time">{threat.time}</div>
+                      <div className="feed-details">
+                        <span className="type">{threat.type}</span>
+                        <span className="target">Target: {threat.target}</span>
+                      </div>
+                      <div className="feed-action">
+                        <span className={`status-badge ${threat.status.toLowerCase()}`}>{threat.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {mappedThreatFeed.length > visibleThreatFeed.length ? (
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 8 }}>
+                    Showing latest {visibleThreatFeed.length} of {mappedThreatFeed.length} incidents.
+                  </p>
+                ) : null}
+
+                <button
+                  className="btn-primary"
+                  type="button"
+                  style={{ marginTop: 12 }}
+                  onClick={handleGenerateReport}
+                  disabled={reportBusy}
+                >
+                  <FileText size={16} style={{ marginRight: 8 }} />
+                  {reportBusy ? 'Generating...' : 'Generate Reports'}
+                </button>
+                {reportError ? <p style={{ color: '#ff5f7a', marginTop: 10 }}>{reportError}</p> : null}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="user-management-container fade-in">
+            <div className="glass-panel">
+              <div className="section-header">
+                <h3>User Role Management</h3>
+                <span className="badge">{userTotal} Total Users</span>
+              </div>
+
+              {usersLoading ? (
+                <div className="loading-spinner">Loading users...</div>
+              ) : usersError ? (
+                <div className="error-message">{usersError}</div>
+              ) : (
+                <div className="user-table-wrapper">
+                  <table className="user-table">
+                    <thead>
+                      <tr>
+                        <th>Email</th>
+                        <th>Current Role</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((user) => (
+                        <tr key={user._id}>
+                          <td>{user.email}</td>
+                          <td>
+                            <span className={`role-badge ${user.role}`}>{user.role.replace('_', ' ')}</span>
+                          </td>
+                          <td>
+                            <select
+                              className="role-select"
+                              value={user.role}
+                              onChange={(e) => handleRoleChange(user._id, e.target.value)}
+                              disabled={roleUpdateBusy === user._id}
+                            >
+                              <option value="analyst">Analyst</option>
+                              <option value="ml_engineer">ML Engineer</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="pagination">
+                    <button
+                      disabled={userPage === 1}
+                      onClick={() => setUserPage((p) => p - 1)}
+                      className="btn-secondary"
+                    >
+                      Previous
+                    </button>
+                    <span>
+                      Page {userPage} of {Math.ceil(userTotal / 10)}
+                    </span>
+                    <button
+                      disabled={userPage >= Math.ceil(userTotal / 10)}
+                      onClick={() => setUserPage((p) => p + 1)}
+                      className="btn-secondary"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );
