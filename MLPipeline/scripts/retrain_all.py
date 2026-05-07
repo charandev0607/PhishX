@@ -11,6 +11,24 @@ sys.path.insert(0, str(REPO_ROOT / "MLPipeline" / "py"))
 from mlpipeline.io_jsonl import read_jsonl, write_jsonl
 
 
+def _seed_url_rows():
+    phishing = [
+        {"url": "https://paypaI-login-check.example.com", "label": 1},
+        {"url": "https://secure-banking-verify.example.com/session", "label": 1},
+        {"url": "https://microsoft-security-reset.example.com/account", "label": 1},
+        {"url": "https://apple-id-restore.example.com/recovery", "label": 1},
+        {"url": "https://wallet-auth-check.example.com/confirm", "label": 1},
+    ]
+    safe = [
+        {"url": "https://www.google.com/", "label": 0},
+        {"url": "https://www.github.com/", "label": 0},
+        {"url": "https://www.wikipedia.org/", "label": 0},
+        {"url": "https://www.python.org/", "label": 0},
+        {"url": "https://developer.mozilla.org/", "label": 0},
+    ]
+    return phishing + safe
+
+
 def _seed_email_rows():
     phishing = [
         {
@@ -135,8 +153,10 @@ def main() -> None:
     )
     merge_dataset(ds / "webpage_train.jsonl", inc / "webpage_train.jsonl", "text")
 
-    # Seed minimal datasets when email/webpage files are missing or empty.
+    # Seed minimal datasets when files are missing or empty.
     # This keeps retraining usable in fresh/dev environments.
+    ensure_seed_dataset(ds / "url_train.jsonl", _seed_url_rows())
+    ensure_seed_dataset(ds / "url_eval.jsonl", _seed_url_rows())
     ensure_seed_dataset(ds / "email_train.jsonl", _seed_email_rows())
     ensure_seed_dataset(ds / "email_eval.jsonl", _seed_email_rows())
     ensure_seed_dataset(ds / "webpage_train.jsonl", _seed_webpage_rows())

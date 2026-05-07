@@ -10,6 +10,47 @@ import { AuditLog } from "../models/AuditLog.js";
 
 const execFileAsync = promisify(execFile);
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const REQUIRED_DATASET_PATHS = [
+  "MLPipeline/datasets/url_train.jsonl",
+  "MLPipeline/datasets/email_train.jsonl",
+  "MLPipeline/datasets/webpage_train.jsonl",
+];
+const REQUIRED_ARTIFACT_PATHS = [
+  "MLPipeline/artifacts/url_logreg/latest.json",
+  "MLPipeline/artifacts/email_tfidf_logreg/latest.json",
+  "MLPipeline/artifacts/webpage_signals_rf/latest.json",
+];
+
+const runLocalRetrainWithBootstrap = async () => {
+  const retrainScriptPath = resolve(repoRoot, "MLPipeline", "scripts", "retrain_all.py");
+  const syntheticScriptPath = resolve(repoRoot, "MLPipeline", "scripts", "generate_synthetic_datasets.py");
+  await access(retrainScriptPath);
+  const pythonBin = process.platform === "win32" ? "python" : "python3";
+
+  try {
+    await execFileAsync(pythonBin, ["MLPipeline/scripts/retrain_all.py"], {
+      cwd: repoRoot,
+      timeout: 20 * 60 * 1000,
+    });
+    return { mode: "local-fallback", message: "Retraining completed locally" };
+  } catch (firstError) {
+    const combinedOutput = `${firstError?.stdout || ""}\n${firstError?.stderr || ""}\n${firstError?.message || ""}`;
+    const missingDataset = /missing or empty datasets/i.test(combinedOutput);
+    if (!missingDataset) throw firstError;
+
+    // Self-heal local environments by generating baseline synthetic datasets, then retry once.
+    await access(syntheticScriptPath);
+    await execFileAsync(pythonBin, ["MLPipeline/scripts/generate_synthetic_datasets.py"], {
+      cwd: repoRoot,
+      timeout: 5 * 60 * 1000,
+    });
+    await execFileAsync(pythonBin, ["MLPipeline/scripts/retrain_all.py"], {
+      cwd: repoRoot,
+      timeout: 20 * 60 * 1000,
+    });
+    return { mode: "local-fallback", message: "Retraining completed locally after dataset bootstrap" };
+  }
+};
 
 export const submitMlFeedbackController = async (req, res, next) => {
   try {
@@ -54,12 +95,44 @@ export const submitMlFeedbackController = async (req, res, next) => {
 
 export const mlMetricsController = async (req, res, next) => {
   try {
-    const days = Number(req.query.days ?? 14);
+    const days = req.query.days;
     const rows = await getLatestDailyMetrics(days);
     return res.status(200).json({
       success: true,
       message: "ML metrics fetched",
       data: { days: rows.length, rows },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const mlReadinessController = async (_req, res, next) => {
+  try {
+    const allChecks = [...REQUIRED_DATASET_PATHS, ...REQUIRED_ARTIFACT_PATHS];
+    const checks = await Promise.all(
+      allChecks.map(async (relPath) => {
+        const absPath = resolve(repoRoot, relPath);
+        try {
+          await access(absPath);
+          return { path: relPath, ok: true };
+        } catch {
+          return { path: relPath, ok: false };
+        }
+      })
+    );
+
+    const missing = checks.filter((item) => !item.ok).map((item) => item.path);
+    const ready = missing.length === 0;
+    return res.status(200).json({
+      success: true,
+      message: ready ? "ML system is ready" : "ML system is not fully ready",
+      data: {
+        ready,
+        datasets: checks.filter((item) => item.path.includes("/datasets/")),
+        artifacts: checks.filter((item) => item.path.includes("/artifacts/")),
+        missing,
+      },
     });
   } catch (error) {
     return next(error);
@@ -84,15 +157,11 @@ export const mlRetrainController = async (req, res, next) => {
       }
     } catch (remoteError) {
       // Fallback for local development where Python service may not expose /retrain.
-      const retrainScriptPath = resolve(repoRoot, "MLPipeline", "scripts", "retrain_all.py");
       try {
-        await access(retrainScriptPath);
+        payload = await runLocalRetrainWithBootstrap();
       } catch {
         throw remoteError;
       }
-      const pythonBin = process.platform === "win32" ? "python" : "python3";
-      await execFileAsync(pythonBin, ["MLPipeline/scripts/retrain_all.py"], { cwd: repoRoot, timeout: 20 * 60 * 1000 });
-      payload = { mode: "local-fallback", message: "Retraining completed locally" };
     }
     payload = { ...payload, feedbackExport: exportStats };
 

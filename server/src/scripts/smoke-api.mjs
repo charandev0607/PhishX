@@ -3,11 +3,18 @@
  * Usage: npm run smoke -w server
  */
 import { config } from "dotenv";
+import { existsSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: join(__dirname, "..", "..", ".env") });
+const REPO_ROOT = join(__dirname, "..", "..", "..");
+const REQUIRED_ML_DATASETS = [
+  "MLPipeline/datasets/url_train.jsonl",
+  "MLPipeline/datasets/email_train.jsonl",
+  "MLPipeline/datasets/webpage_train.jsonl",
+];
 
 const smokePort = Number(process.env.PORT || 5000);
 const BASE = process.env.SMOKE_API_BASE || `http://127.0.0.1:${smokePort}/api/v1`;
@@ -70,6 +77,11 @@ async function main() {
   console.log(`Smoke target: ${BASE}`);
   console.log("Waiting for API…");
   await waitForApiReady();
+
+  // Baseline ML dataset availability
+  for (const relPath of REQUIRED_ML_DATASETS) {
+    ok(`ml dataset exists: ${relPath}`, existsSync(join(REPO_ROOT, relPath)));
+  }
 
   // Health
   const health = await jsonFetch("GET", "/system/health");
@@ -344,6 +356,17 @@ async function main() {
 
   const metrics = await jsonFetch("GET", "/ml/metrics?days=7", { token: access2 });
   ok("ml metrics → 200", metrics.status === 200);
+  ok("ml metrics returns rows array", metrics.status === 200 && Array.isArray(metrics.data?.data?.rows));
+
+  const mlReadiness = await jsonFetch("GET", "/ml/readiness", { token: access2 });
+  ok("ml readiness → 200", mlReadiness.status === 200);
+  ok("ml readiness returns ready flag", mlReadiness.status === 200 && typeof mlReadiness.data?.data?.ready === "boolean");
+
+  const retrainNoAuth = await jsonFetch("POST", "/ml/retrain");
+  ok("ml retrain no auth → 401", retrainNoAuth.status === 401);
+
+  const retrainAnalyst = await jsonFetch("POST", "/ml/retrain", { token: access2 });
+  ok("ml retrain analyst forbidden → 403", retrainAnalyst.status === 403);
 
   // Admin flow
   const adminEmail = process.env.ADMIN_EMAIL;
@@ -451,6 +474,14 @@ async function main() {
       const mlToken = mlLogin.data?.data?.accessToken;
       const threatFeedMl = await jsonFetch("GET", "/threat-feed", { token: mlToken });
       ok("threat-feed ml engineer access → 200", threatFeedMl.status === 200);
+
+      const mlReadinessMlRole = await jsonFetch("GET", "/ml/readiness", { token: mlToken });
+      ok("ml readiness ml engineer access → 200", mlReadinessMlRole.status === 200);
+
+      if (process.env.SMOKE_RUN_ML_RETRAIN_TEST === "true") {
+        const retrainMl = await jsonFetch("POST", "/ml/retrain", { token: mlToken });
+        ok("ml retrain with ml engineer role → 200", retrainMl.status === 200);
+      }
 
       const blockedBefore = await jsonFetch("GET", "/stats/blocked-attempts", { token: access2 });
       const beforeCount = Number(blockedBefore.data?.data?.blocked_attempts || 0);

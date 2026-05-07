@@ -87,6 +87,9 @@ export const schemas = {
     groundTruthStatus: Joi.string().valid("safe", "suspicious", "phishing").required(),
     notes: Joi.string().max(2000).allow(""),
   }),
+  mlMetricsQuery: Joi.object({
+    days: Joi.number().integer().min(1).max(365).default(14),
+  }),
   reportLink: Joi.object({
     url: Joi.string().uri({ scheme: ["http", "https"] }).required(),
     description: Joi.string().max(2000).allow(""),

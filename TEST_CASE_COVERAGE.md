@@ -42,3 +42,6 @@ Primary references:
 
 - The smoke suite intentionally keeps load low by default; rate-limit stress is opt-in.
 - Dashboard live-refresh timing validation is inherently UI behavior and should be verified from the dashboard flow in addition to API checks.
+- ML baseline readiness is enforced by smoke checks that verify required dataset files exist before API validations.
+- Optional ML retraining execution check is available via `SMOKE_RUN_ML_RETRAIN_TEST=true`.
+- Runtime ML readiness is available at `GET /api/v1/ml/readiness` for `admin`, `analyst`, and `ml_engineer`.
