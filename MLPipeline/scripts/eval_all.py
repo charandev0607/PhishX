@@ -42,6 +42,11 @@ def latest_dir(artifacts: Path, name: str) -> Path:
     return artifacts / name / latest["version"]
 
 
+def model_threshold(model_dir: Path) -> float:
+    card = json.loads((model_dir / "model_card.json").read_text(encoding="utf-8"))
+    return float(card.get("threshold", 0.5))
+
+
 def must_pass(name: str, m: Dict[str, float]) -> None:
     g = gates()
     failures: List[str] = []
@@ -64,27 +69,32 @@ def main() -> None:
     url_eval = read_jsonl(repo_root / "MLPipeline" / "datasets" / "url_eval.jsonl")
     X_url = np.asarray([featurize_url(r["url"])[0] for r in url_eval], dtype=np.float32)
     y_url = np.asarray([int(r["label"]) for r in url_eval], dtype=np.int32)
-    url_model = joblib.load(latest_dir(artifacts, "url_logreg") / "model.joblib")
+    url_dir = latest_dir(artifacts, "url_logreg")
+    url_model = joblib.load(url_dir / "model.joblib")
     url_scores = url_model.predict_proba(X_url)[:, 1]
-    url_m = eval_binary(url_scores, y_url, threshold=0.5)
+    url_m = eval_binary(url_scores, y_url, threshold=model_threshold(url_dir))
     must_pass("url_logreg", url_m)
 
     # Email model
     email_eval = read_jsonl(repo_root / "MLPipeline" / "datasets" / "email_eval.jsonl")
     X_email = [f"{r.get('subject','')}\n{r.get('body','')}" for r in email_eval]
     y_email = np.asarray([int(r["label"]) for r in email_eval], dtype=np.int32)
-    email_model = joblib.load(latest_dir(artifacts, "email_tfidf_logreg") / "model.joblib")
+    email_dir = latest_dir(artifacts, "email_tfidf_logreg")
+    email_model = joblib.load(email_dir / "model.joblib")
     email_scores = email_model.predict_proba(X_email)[:, 1]
-    email_m = eval_binary(email_scores, y_email, threshold=0.5)
+    email_m = eval_binary(email_scores, y_email, threshold=model_threshold(email_dir))
     must_pass("email_tfidf_logreg", email_m)
 
     # Webpage model
     web_eval = read_jsonl(repo_root / "MLPipeline" / "datasets" / "webpage_eval.jsonl")
     X_web = np.asarray([featurize_text(r.get("text", ""))[0] for r in web_eval], dtype=np.float32)
     y_web = np.asarray([int(r["label"]) for r in web_eval], dtype=np.int32)
-    web_model = joblib.load(latest_dir(artifacts, "webpage_signals_rf") / "model.joblib")
+    web_dir = latest_dir(artifacts, "webpage_signals_rf")
+    web_model = joblib.load(web_dir / "model.joblib")
+    if hasattr(web_model, "n_jobs"):
+        web_model.n_jobs = 1
     web_scores = web_model.predict_proba(X_web)[:, 1]
-    web_m = eval_binary(web_scores, y_web, threshold=0.5)
+    web_m = eval_binary(web_scores, y_web, threshold=model_threshold(web_dir))
     must_pass("webpage_signals_rf", web_m)
 
     print(json.dumps({"url_logreg": url_m, "email_tfidf_logreg": email_m, "webpage_signals_rf": web_m}, indent=2))

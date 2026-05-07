@@ -115,8 +115,11 @@ export const login = async (req, res, next) => {
       }
       await user.save();
 
-      const err = new Error("Invalid credentials");
-      err.statusCode = 401;
+      const err =
+        user.failedAttempts >= MAX_FAILED_ATTEMPTS
+          ? new Error("Account is temporarily locked due to failed login attempts")
+          : new Error("Invalid credentials");
+      err.statusCode = user.failedAttempts >= MAX_FAILED_ATTEMPTS ? 423 : 401;
       throw err;
     }
 

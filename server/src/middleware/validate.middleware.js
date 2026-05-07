@@ -1,5 +1,8 @@
 import Joi from "joi";
 
+const signupPassword = Joi.string().min(8);
+const loginPassword = Joi.string().min(1);
+
 export const validate = (schema, property = "body") => (req, _res, next) => {
   const { error, value } = schema.validate(req[property], {
     abortEarly: false,
@@ -20,11 +23,11 @@ export const validate = (schema, property = "body") => (req, _res, next) => {
 export const schemas = {
   signup: Joi.object({
     email: Joi.string().email({ tlds: { allow: false } }).required(),
-    password: Joi.string().min(8).required(),
+    password: signupPassword.required(),
   }),
   login: Joi.object({
     email: Joi.string().email({ tlds: { allow: false } }).required(),
-    password: Joi.string().min(8).required(),
+    password: loginPassword.required(),
   }),
   refresh: Joi.object({
     refreshToken: Joi.string().required(),
@@ -37,7 +40,7 @@ export const schemas = {
   }),
   resetPassword: Joi.object({
     token: Joi.string().min(16).required(),
-    newPassword: Joi.string().min(8).required(),
+    newPassword: signupPassword.required(),
   }),
   analyzeUrl: Joi.object({
     url: Joi.string().uri({ scheme: ["http", "https"] }).required(),

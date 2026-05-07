@@ -13,6 +13,14 @@ import { logger } from "./utils/logger.js";
 import { startRetentionEngine, stopRetentionEngine } from "./services/retention.service.js";
 
 const PORT = Number(process.env.PORT || 5000);
+const REQUIRED_ENV_VARS = ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"];
+
+const validateRequiredEnv = () => {
+  const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+  }
+};
 
 const createHttpServer = () => {
   if (process.env.HTTPS_ENABLED !== "true") {
@@ -73,6 +81,7 @@ const ensureBootstrapAdmin = async () => {
 
 const bootstrap = async () => {
   try {
+    validateRequiredEnv();
     await connectDB();
     await ensureBootstrapAdmin();
 

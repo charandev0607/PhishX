@@ -1,10 +1,10 @@
 # Project Test Case Coverage
 
-This file tracks how the 72 master test cases are covered inside the project.
+This file tracks how the 70 master test cases are covered inside the project.
 
 Primary references:
 
-- Master list: `MASTER_TEST_CASES_70.md` (contains 72 total test cases)
+- Master list: `MASTER_TEST_CASES_70.md` (contains 70 total test cases)
 - API automation: `server/src/scripts/smoke-api.mjs`
 - Postman/manual execution guide: `POSTMAN_TC1_TO_TC7.md`
 

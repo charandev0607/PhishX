@@ -203,6 +203,61 @@ async function main() {
     httpUrl.status === 201 && (httpUrl.data?.data?.reasons || []).some((r) => String(r).toLowerCase().includes("https"))
   );
 
+  const ipUrl = await jsonFetch("POST", "/url-analyze", {
+    token: access2,
+    body: { url: "http://192.168.10.24/login" },
+  });
+  ok("ip-host URL analyzed → 201", ipUrl.status === 201);
+  ok(
+    "ip-host URL reason detected",
+    ipUrl.status === 201 &&
+      (ipUrl.data?.data?.reasons || []).some((r) => String(r).toLowerCase().includes("raw ip"))
+  );
+
+  const shortenerUrl = await jsonFetch("POST", "/url-analyze", {
+    token: access2,
+    body: { url: "https://bit.ly/account-check" },
+  });
+  ok("shortener URL analyzed → 201", shortenerUrl.status === 201);
+  ok(
+    "shortener URL reason detected",
+    shortenerUrl.status === 201 &&
+      (shortenerUrl.data?.data?.reasons || []).some((r) => String(r).toLowerCase().includes("shortening service"))
+  );
+
+  const fakeHttpsUrl = await jsonFetch("POST", "/url-analyze", {
+    token: access2,
+    body: { url: "https://https-secure-login-check.example.com/portal" },
+  });
+  ok("fake-https-word URL analyzed → 201", fakeHttpsUrl.status === 201);
+  ok(
+    "fake-https-word URL reason detected",
+    fakeHttpsUrl.status === 201 &&
+      (fakeHttpsUrl.data?.data?.reasons || []).some((r) => String(r).toLowerCase().includes("trust-building words"))
+  );
+
+  const suspiciousTldUrl = await jsonFetch("POST", "/url-analyze", {
+    token: access2,
+    body: { url: "https://account-recovery-security.top/login" },
+  });
+  ok("suspicious-tld URL analyzed → 201", suspiciousTldUrl.status === 201);
+  ok(
+    "suspicious-tld URL reason detected",
+    suspiciousTldUrl.status === 201 &&
+      (suspiciousTldUrl.data?.data?.reasons || []).some((r) => String(r).toLowerCase().includes("high-risk top-level domain"))
+  );
+
+  const atTrickUrl = await jsonFetch("POST", "/url-analyze", {
+    token: access2,
+    body: { url: "https://trusted.example.com@evil-login.top/session" },
+  });
+  ok("@-trick URL analyzed → 201", atTrickUrl.status === 201);
+  ok(
+    "@-trick URL reason detected",
+    atTrickUrl.status === 201 &&
+      (atTrickUrl.data?.data?.reasons || []).some((r) => String(r).toLowerCase().includes("@ symbol"))
+  );
+
   const emailRes = await jsonFetch("POST", "/email-analyze", {
     token: access2,
     body: {
