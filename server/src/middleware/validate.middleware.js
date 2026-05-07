@@ -42,6 +42,15 @@ export const schemas = {
     token: Joi.string().min(16).required(),
     newPassword: signupPassword.required(),
   }),
+  verifyOtp: Joi.object({
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    otp: Joi.string().length(6).required(),
+  }),
+  resetPasswordOtp: Joi.object({
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    otp: Joi.string().length(6).required(),
+    newPassword: signupPassword.required(),
+  }),
   analyzeUrl: Joi.object({
     url: Joi.string().uri({ scheme: ["http", "https"] }).required(),
     pageHtml: Joi.string().max(50000).allow(""),
@@ -70,13 +79,13 @@ export const schemas = {
     order: Joi.string().valid("asc", "desc").default("desc"),
   }),
   adminUsersQuery: Joi.object({
-    role: Joi.string().valid("admin", "analyst", "ml_engineer").optional(),
+    role: Joi.string().valid("admin", "end_user", "ml_engineer").optional(),
     search: Joi.string().max(200).optional(),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(20),
   }),
   adminUserRole: Joi.object({
-    role: Joi.string().valid("admin", "analyst", "ml_engineer").required(),
+    role: Joi.string().valid("admin", "end_user", "ml_engineer").required(),
   }),
   adminPolicyUpdate: Joi.object({
     autoBlockThreshold: Joi.number().min(0).max(100),

@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { User } from "../models/User.js";
 import { AuditLog } from "../models/AuditLog.js";
 import { createSession, findActiveSession, revokeSession, rotateSession, verifyRefreshToken } from "../services/session.service.js";
+import { sendOtpEmail } from "../services/email.service.js";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
@@ -74,7 +75,7 @@ export const signup = async (req, res, next) => {
     const user = await User.create({
       email: normalizedEmail,
       password: passwordHash,
-      role: "analyst",
+      role: "end_user",
     });
 
     const authData = await issueSessionTokens({ user, req, action: "auth:signup" });
@@ -135,6 +136,14 @@ export const login = async (req, res, next) => {
       data: authData,
     });
   } catch (error) {
+    if (error.statusCode === 401) {
+      const user = await User.findOne({ email: req.body.email.toLowerCase() }).select("failedAttempts");
+      if (user) {
+        error.data = { failedAttempts: user.failedAttempts, userExists: true };
+      } else {
+        error.data = { userExists: false };
+      }
+    }
     return next(error);
   }
 };
@@ -293,6 +302,107 @@ export const resetPassword = async (req, res, next) => {
     await AuditLog.create({
       userId: user._id,
       action: "auth:reset-password",
+      ip: req.ip,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successful. Please login with new password.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+export const forgotPasswordOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const normalizedEmail = email.toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail }).select("+passwordResetOtp +passwordResetOtpExpiresAt");
+
+    if (!user) {
+      // Silent fail for security
+      return res.status(200).json({
+        success: true,
+        message: "If the email exists, an OTP has been sent.",
+      });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+    user.passwordResetOtp = otp;
+    user.passwordResetOtpExpiresAt = expiresAt;
+    await user.save();
+
+    await AuditLog.create({
+      userId: user._id,
+      action: "auth:forgot-password-otp",
+      ip: req.ip,
+      metadata: { expiresAt },
+    });
+
+    console.log(`[OTP DEBUG] OTP for ${email}: ${otp}`); // Logged for dev backup
+    await sendOtpEmail(normalizedEmail, otp);
+
+    return res.status(200).json({
+      success: true,
+      message: "If the email exists, an OTP has been sent.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const verifyOtp = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+      passwordResetOtp: otp,
+      passwordResetOtpExpiresAt: { $gt: new Date() },
+    });
+
+    if (!user) {
+      const err = new Error("Invalid or expired OTP");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP verified successfully",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const resetPasswordOtp = async (req, res, next) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+      passwordResetOtp: otp,
+      passwordResetOtpExpiresAt: { $gt: new Date() },
+    }).select("+password +passwordResetOtp +passwordResetOtpExpiresAt");
+
+    if (!user) {
+      const err = new Error("Invalid or expired OTP");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.failedAttempts = 0;
+    user.lockUntil = null;
+    user.passwordResetOtp = null;
+    user.passwordResetOtpExpiresAt = null;
+    user.refreshTokenHash = null;
+    await user.save();
+
+    await AuditLog.create({
+      userId: user._id,
+      action: "auth:reset-password-otp",
       ip: req.ip,
     });
 

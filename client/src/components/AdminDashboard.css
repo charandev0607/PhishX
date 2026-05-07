@@ -709,7 +709,7 @@
     border: 1px solid rgba(157, 0, 255, 0.3);
 }
 
-.role-badge.analyst {
+.role-badge.end_user {
     background: rgba(0, 243, 255, 0.1);
     color: var(--accent-cyan);
     border: 1px solid rgba(0, 243, 255, 0.3);

@@ -17,8 +17,8 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "analyst", "ml_engineer"],
-      default: "analyst",
+      enum: ["admin", "end_user", "ml_engineer"],
+      default: "end_user",
     },
     failedAttempts: {
       type: Number,
@@ -39,6 +39,16 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
     passwordResetExpiresAt: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+    passwordResetOtp: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    passwordResetOtpExpiresAt: {
       type: Date,
       default: null,
       select: false,

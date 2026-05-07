@@ -247,10 +247,6 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
             <Users size={20} />
             <span>User Roles</span>
           </div>
-          <div className="nav-item">
-            <Settings size={20} />
-            <span>Settings</span>
-          </div>
         </nav>
 
         <div className="system-health">
@@ -430,7 +426,7 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
                               onChange={(e) => handleRoleChange(user._id, e.target.value)}
                               disabled={roleUpdateBusy === user._id}
                             >
-                              <option value="analyst">Analyst</option>
+                              <option value="end_user">End User</option>
                               <option value="ml_engineer">ML Engineer</option>
                               <option value="admin">Admin</option>
                             </select>

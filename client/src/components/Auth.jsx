@@ -12,6 +12,9 @@ const Auth = ({ onLogin }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [showResetLink, setShowResetLink] = useState(false);
+    const [otp, setOtp] = useState('');
+    const [otpSent, setOtpSent] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -24,23 +27,19 @@ const Auth = ({ onLogin }) => {
             }
             setIsSubmitting(true);
             try {
-                const res = await fetch('/api/v1/auth/forgot-password', {
+                const res = await fetch('/api/v1/auth/forgot-password-otp', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     body: JSON.stringify({ email }),
                 });
                 const json = await res.json();
                 if (!res.ok) {
-                    setError(json?.message || 'Unable to issue reset token.');
+                    setError(json?.message || 'Unable to send OTP.');
                     return;
                 }
-                setSuccess('Reset token issued. Use it to set a new password.');
-                if (json?.data?.resetToken) {
-                    setIssuedResetToken(json.data.resetToken);
-                } else {
-                    setIssuedResetToken('');
-                }
-                setMode('reset');
+                setSuccess('OTP sent to your email.');
+                setOtpSent(true);
+                setMode('otp_verify');
             } catch {
                 setError('Unable to reach backend authentication service.');
             } finally {
@@ -49,30 +48,61 @@ const Auth = ({ onLogin }) => {
             return;
         }
 
-        if (mode === 'reset') {
-            if (!resetToken || !newPassword) {
-                setError('Please provide token and new password.');
+        if (mode === 'otp_verify') {
+            if (!otp) {
+                setError('Please enter the OTP.');
                 return;
             }
             setIsSubmitting(true);
             try {
-                const res = await fetch('/api/v1/auth/reset-password', {
+                const res = await fetch('/api/v1/auth/verify-otp', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({ token: resetToken, newPassword }),
+                    body: JSON.stringify({ email, otp }),
+                });
+                const json = await res.json();
+                if (!res.ok) {
+                    setError(json?.message || 'Invalid OTP.');
+                    return;
+                }
+                setSuccess('OTP verified. Set your new password.');
+                setMode('reset_final');
+            } catch {
+                setError('Unable to reach backend authentication service.');
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
+
+        if (mode === 'reset_final') {
+            if (!newPassword || !confirmPassword) {
+                setError('Please fill in both fields.');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                setError('Passwords do not match.');
+                return;
+            }
+            setIsSubmitting(true);
+            try {
+                const res = await fetch('/api/v1/auth/reset-password-otp', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ email, otp, newPassword }),
                 });
                 const json = await res.json();
                 if (!res.ok) {
                     setError(json?.message || 'Password reset failed.');
                     return;
                 }
-                setSuccess('Password reset successful. Please sign in.');
+                setSuccess('Password updated successfully. Please login.');
                 setMode('login');
-                setResetToken('');
+                setOtp('');
+                setOtpSent(false);
                 setNewPassword('');
-                setIssuedResetToken('');
-                setPassword('');
                 setConfirmPassword('');
+                setPassword('');
             } catch {
                 setError('Unable to reach backend authentication service.');
             } finally {
@@ -100,6 +130,11 @@ const Auth = ({ onLogin }) => {
             const json = await res.json();
             if (!res.ok || !json?.data?.user || !json?.data?.accessToken || !json?.data?.refreshToken) {
                 setError(json?.message || (mode === 'signup' ? 'Signup failed.' : 'Login failed.'));
+                if (mode === 'login' && json?.data?.userExists) {
+                    setShowResetLink(true);
+                } else {
+                    setShowResetLink(false);
+                }
                 return;
             }
             onLogin({
@@ -122,7 +157,17 @@ const Auth = ({ onLogin }) => {
                         <div className="auth-pulse"></div>
                         <h2>Sentinel AI</h2>
                     </div>
-                    <p>{mode === 'signup' ? 'Create your account' : mode === 'forgot' ? 'Recover your account' : mode === 'reset' ? 'Set a new password' : 'Sign in to your account'}</p>
+                    <p>
+                        {mode === 'signup' 
+                            ? 'Create your account' 
+                            : mode === 'forgot' 
+                            ? 'Recover your account' 
+                            : mode === 'otp_verify'
+                            ? 'Enter the 6-digit OTP'
+                            : mode === 'reset_final'
+                            ? 'Set your new password'
+                            : 'Sign in to your account'}
+                    </p>
                 </div>
 
                 <form className="auth-form" onSubmit={handleSubmit}>
@@ -164,19 +209,23 @@ const Auth = ({ onLogin }) => {
                             />
                         </div>
                     )}
-                    {mode === 'reset' && (
+                    {mode === 'otp_verify' && (
+                        <div className="form-group">
+                            <label>6-Digit OTP</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="XXXXXX"
+                                maxLength="6"
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value)}
+                                required
+                            />
+                        </div>
+                    )}
+
+                    {mode === 'reset_final' && (
                         <>
-                            <div className="form-group">
-                                <label>Reset Token</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="Paste reset token"
-                                    value={resetToken}
-                                    onChange={(e) => setResetToken(e.target.value)}
-                                    required
-                                />
-                            </div>
                             <div className="form-group">
                                 <label>New Password</label>
                                 <input
@@ -188,15 +237,17 @@ const Auth = ({ onLogin }) => {
                                     required
                                 />
                             </div>
-                            {issuedResetToken ? (
-                                <p style={{ color: '#00f3ff', marginTop: '8px', fontSize: '0.85rem', wordBreak: 'break-all' }}>
-                                    Dev reset token: {issuedResetToken}
-                                </p>
-                            ) : (
-                                <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '0.85rem' }}>
-                                    In production, reset tokens are delivered out-of-band (email/SMS) and are not shown in the UI.
-                                </p>
-                            )}
+                            <div className="form-group">
+                                <label>Confirm New Password</label>
+                                <input
+                                    type="password"
+                                    className="form-input"
+                                    placeholder="••••••••"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
                         </>
                     )}
 
@@ -204,9 +255,21 @@ const Auth = ({ onLogin }) => {
                     {success && <p style={{ color: '#00ff88', marginTop: '8px' }}>{success}</p>}
                     <button type="submit" className="auth-btn" disabled={isSubmitting}>
                         {isSubmitting
-                            ? (mode === 'signup' ? 'Creating Account...' : mode === 'forgot' ? 'Issuing Token...' : mode === 'reset' ? 'Resetting Password...' : 'Signing In...')
-                            : (mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Issue Reset Token' : mode === 'reset' ? 'Reset Password' : 'Sign In')}
+                            ? (mode === 'signup' ? 'Creating Account...' : mode === 'forgot' ? 'Sending OTP...' : mode === 'otp_verify' ? 'Verifying...' : mode === 'reset_final' ? 'Updating...' : 'Signing In...')
+                            : (mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Send OTP' : mode === 'otp_verify' ? 'Verify OTP' : mode === 'reset_final' ? 'Update Password' : 'Sign In')}
                     </button>
+                    {mode === 'login' && showResetLink && (
+                        <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                            <button 
+                                type="button" 
+                                className="btn-text danger-text" 
+                                onClick={() => { setMode('forgot'); setShowResetLink(false); setError(''); }}
+                                style={{ fontSize: '0.85rem', color: '#ff5f7a', background: 'none', border: 'none', cursor: 'pointer' }}
+                            >
+                                Forgot password? Click here to reset.
+                            </button>
+                        </div>
+                    )}
                 </form>
                 <div className="auth-toggle">
                     {mode === 'signup' ? 'Already have an account?' : mode === 'login' ? "Don't have an account?" : 'Need a different action?'}
@@ -222,7 +285,7 @@ const Auth = ({ onLogin }) => {
                             setConfirmPassword('');
                         }}
                     >
-                        {mode === 'signup' ? 'Sign in' : mode === 'login' ? 'Sign up' : mode === 'forgot' ? 'Back to sign in' : 'Forgot password'}
+                        {mode === 'signup' ? 'Sign in' : mode === 'login' ? 'Sign up' : 'Back to sign in'}
                     </button>
                 </div>
             </div>
