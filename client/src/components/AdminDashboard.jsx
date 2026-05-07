@@ -58,10 +58,12 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
   }, []);
 
   useEffect(() => {
+    if (!accessToken) return undefined;
+
     const socket = io('/', {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
-      auth: accessToken ? { token: accessToken } : undefined,
+      auth: { token: accessToken },
     });
 
     socket.on('incident:new', (incident) => {
@@ -78,10 +80,14 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
       if (health) setSystemHealth(health);
     });
 
+    socket.on('connect_error', () => {
+      socket.disconnect();
+    });
+
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [accessToken]);
 
   const handleGenerateReport = async () => {
     setReportBusy(true);

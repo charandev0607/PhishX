@@ -1,4 +1,19 @@
 services:
+  mongo:
+    image: mongo:7
+    container_name: phishx-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
   ml:
     build:
       context: ./MLPipeline
@@ -30,8 +45,11 @@ services:
     environment:
       - CLIENT_ORIGIN=http://localhost:8080
       - ML_SERVICE_URL=http://ml:8010
+      - MONGO_URI=mongodb://mongo:27017/phishx
     depends_on:
       ml:
+        condition: service_healthy
+      mongo:
         condition: service_healthy
     restart: unless-stopped
 
@@ -45,3 +63,6 @@ services:
     depends_on:
       - server
     restart: unless-stopped
+
+volumes:
+  mongo_data:

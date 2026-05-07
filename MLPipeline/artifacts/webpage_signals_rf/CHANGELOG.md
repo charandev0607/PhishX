@@ -45,3 +45,13 @@
 - Metrics: {'precision': 0.0, 'recall': 0.0, 'f1': 0.0, 'auc': 0.5}
 - Notes: Webpage urgency/brand/login/link-count signals random forest baseline
 
+## 20260507T034540
+- Created: 2026-05-07T03:45:40.604561+00:00
+- Metrics: {'precision': 1.0, 'recall': 0.75, 'f1': 0.8571428571428571, 'auc': 1.0}
+- Notes: Webpage urgency/brand/login/link-count signals random forest baseline
+
+## 20260507T034738
+- Created: 2026-05-07T03:47:38.242366+00:00
+- Metrics: {'precision': 1.0, 'recall': 0.75, 'f1': 0.8571428571428571, 'auc': 1.0}
+- Notes: Webpage urgency/brand/login/link-count signals random forest baseline
+

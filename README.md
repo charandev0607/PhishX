@@ -86,3 +86,11 @@ GET /api/v1/security/csrf-token
 - **End Users**: Protected automatically via the Browser Extension.
 - **Security Admins**: Monitor network safety and generate reports.
 - **ML Engineers**: Iteratively improve the detection models and threat repositories.
+
+---
+
+## ✅ Test Case Coverage
+
+- Master test suite document (72 cases across 14 modules): `MASTER_TEST_CASES_70.md`
+- Backward-compatible test doc path: `POSTMAN_TC1_TO_TC7.md`
+- Project coverage and execution map: `TEST_CASE_COVERAGE.md`

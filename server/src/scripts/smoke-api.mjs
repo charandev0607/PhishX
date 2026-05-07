@@ -142,17 +142,37 @@ async function main() {
   const urlNoAuth = await jsonFetch("POST", "/url-analyze", { body: { url: "https://example.com" } });
   ok("url-analyze no auth → 401", urlNoAuth.status === 401);
 
+  const webpageNoAuth = await jsonFetch("POST", "/webpage-analyze", {
+    body: { text: "public content", sourceUrl: "https://example.com" },
+  });
+  ok("webpage-analyze no auth → 401", webpageNoAuth.status === 401);
+
   const safeUrl = await jsonFetch("POST", "/url-analyze", {
     token: access2,
     body: { url: "https://www.google.com" },
   });
   ok("url-analyze legit URL → 201", safeUrl.status === 201);
   ok("url-analyze returns score", typeof safeUrl.data?.data?.score === "number");
+  const safeIncidentId = safeUrl.data?.data?.incidentId;
 
   const badUrl = await jsonFetch("POST", "/url-analyze", { token: access2, body: { url: "not-a-uri" } });
   ok("url-analyze invalid uri → 400", badUrl.status === 400);
   const missingUrl = await jsonFetch("POST", "/url-analyze", { token: access2, body: {} });
   ok("url-analyze missing url field → 400", missingUrl.status === 400);
+
+  const mongoInjectAttempt = await jsonFetch("POST", "/url-analyze", {
+    token: access2,
+    body: { url: { $gt: "" } },
+  });
+  ok("url-analyze mongo operator payload rejected → 400", mongoInjectAttempt.status === 400);
+
+  if (csrfEnabled) {
+    const csrfMissing = await jsonFetch("POST", "/url-analyze", {
+      token: access2,
+      body: { url: "https://csrf-required.example.com" },
+    });
+    ok("csrf enabled + missing token → 403", csrfMissing.status === 403);
+  }
 
   const xssUrl = await jsonFetch("POST", "/url-analyze", {
     token: access2,
@@ -179,6 +199,21 @@ async function main() {
     },
   });
   ok("email-analyze safe → 201", emailRes.status === 201);
+
+  const webpageRes = await jsonFetch("POST", "/webpage-analyze", {
+    token: access2,
+    body: {
+      text: "Official product documentation and support articles for account setup.",
+      sourceUrl: "https://docs.example.com/help",
+    },
+  });
+  ok("webpage-analyze safe → 201", webpageRes.status === 201);
+
+  const webpageMissingText = await jsonFetch("POST", "/webpage-analyze", {
+    token: access2,
+    body: { sourceUrl: "https://docs.example.com/empty" },
+  });
+  ok("webpage-analyze missing text → 400", webpageMissingText.status === 400);
 
   const urg = await jsonFetch("POST", "/email-analyze", {
     token: access2,
@@ -264,6 +299,12 @@ async function main() {
   });
   ok("ml feedback unknown ObjectId → 404", fbBad.status === 404);
 
+  const fbInvalidId = await jsonFetch("POST", "/ml/feedback", {
+    token: access2,
+    body: { incidentId: "bad-id", groundTruthStatus: "safe" },
+  });
+  ok("ml feedback invalid ObjectId format → 400", fbInvalidId.status === 400);
+
   let fbOk = { status: 0 };
   if (lastId) {
     fbOk = await jsonFetch("POST", "/ml/feedback", {
@@ -271,6 +312,11 @@ async function main() {
       body: { incidentId: String(lastId), groundTruthStatus: "safe", notes: "smoke" },
     });
     ok("ml feedback → 201", fbOk.status === 201);
+    ok(
+      "ml false-positive flag is logically correct",
+      fbOk.status === 201 &&
+        (fbOk.data?.data?.predictedStatus !== "phishing" || fbOk.data?.data?.isFalsePositive === true)
+    );
 
     const fbDup = await jsonFetch("POST", "/ml/feedback", {
       token: access2,
@@ -279,6 +325,21 @@ async function main() {
     ok("ml feedback duplicate → 409", fbDup.status === 409);
   } else {
     ok("ml feedback → 201", false, "no incident id");
+  }
+
+  if (safeIncidentId) {
+    const fbFalseNegative = await jsonFetch("POST", "/ml/feedback", {
+      token: access2,
+      body: { incidentId: String(safeIncidentId), groundTruthStatus: "phishing", notes: "smoke-fn" },
+    });
+    ok("ml feedback false-negative scenario accepted → 201", fbFalseNegative.status === 201);
+    ok(
+      "ml false-negative flag is logically correct",
+      fbFalseNegative.status === 201 &&
+        (fbFalseNegative.data?.data?.predictedStatus !== "safe" || fbFalseNegative.data?.data?.isFalseNegative === true)
+    );
+  } else {
+    ok("ml feedback false-negative scenario accepted → 201", false, "no safe incident id");
   }
 
   const metrics = await jsonFetch("GET", "/ml/metrics?days=7", { token: access2 });
@@ -318,6 +379,12 @@ async function main() {
         });
         ok("admin update role invalid value → 400", badRole.status === 400);
 
+        const analystRole = await jsonFetch("PATCH", `/admin/users/${targetUserId}/role`, {
+          token: adminAccess,
+          body: { role: "analyst" },
+        });
+        ok("admin update role to analyst → 200", analystRole.status === 200);
+
         const goodRole = await jsonFetch("PATCH", `/admin/users/${targetUserId}/role`, {
           token: adminAccess,
           body: { role: "ml_engineer" },
@@ -349,6 +416,12 @@ async function main() {
 
       const emptyPol = await jsonFetch("PUT", "/admin/policies", { token: adminAccess, body: {} });
       ok("policy empty body → 400", emptyPol.status === 400);
+
+      const analystPolicyDenied = await jsonFetch("PUT", "/admin/policies", {
+        token: access2,
+        body: { autoBlockThreshold: 60 },
+      });
+      ok("analyst policy update denied → 403", analystPolicyDenied.status === 403);
 
       const polAgain = await jsonFetch("GET", "/admin/policies", { token: adminAccess });
       ok(
@@ -419,6 +492,19 @@ async function main() {
   }
   const locked = await jsonFetch("POST", "/auth/login", { body: { email: lockEmail, password: analystPass } });
   ok("account locked after failures → 423", locked.status === 423);
+
+  // Optional heavy rate-limit test (off by default to keep smoke fast)
+  if (process.env.SMOKE_RUN_RATE_LIMIT_TEST === "true") {
+    let rateLimitHit = false;
+    for (let i = 0; i < 140; i += 1) {
+      const r = await jsonFetch("GET", "/system/health");
+      if (r.status === 429) {
+        rateLimitHit = true;
+        break;
+      }
+    }
+    ok("rate limit can throttle burst traffic → 429", rateLimitHit);
+  }
 
   console.log(`\nDone: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
