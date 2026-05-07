@@ -30,3 +30,33 @@
 - Metrics: {'precision': 0.0, 'recall': 0.0, 'f1': 0.0, 'auc': 0.5}
 - Notes: Webpage urgency/brand/login/link-count signals random forest baseline
 
+## 20260506T183805
+- Created: 2026-05-06T18:38:05.499135+00:00
+- Metrics: {'precision': 0.0, 'recall': 0.0, 'f1': 0.0, 'auc': 0.5}
+- Notes: Webpage urgency/brand/login/link-count signals random forest baseline
+
+## 20260506T183932
+- Created: 2026-05-06T18:39:32.413256+00:00
+- Metrics: {'precision': 0.0, 'recall': 0.0, 'f1': 0.0, 'auc': 0.5}
+- Notes: Webpage urgency/brand/login/link-count signals random forest baseline
+
+## 20260506T185626
+- Created: 2026-05-06T18:56:26.780788+00:00
+- Metrics: {'precision': 0.0, 'recall': 0.0, 'f1': 0.0, 'auc': 0.5}
+- Notes: Webpage urgency/brand/login/link-count signals random forest baseline
+
+## 20260507T034540
+- Created: 2026-05-07T03:45:40.604561+00:00
+- Metrics: {'precision': 1.0, 'recall': 0.75, 'f1': 0.8571428571428571, 'auc': 1.0}
+- Notes: Webpage urgency/brand/login/link-count signals random forest baseline
+
+## 20260507T034738
+- Created: 2026-05-07T03:47:38.242366+00:00
+- Metrics: {'precision': 1.0, 'recall': 0.75, 'f1': 0.8571428571428571, 'auc': 1.0}
+- Notes: Webpage urgency/brand/login/link-count signals random forest baseline
+
+## 20260507T123823
+- Created: 2026-05-07T12:38:23.811672+00:00
+- Metrics: {'accuracy': 1.0, 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'auc': 1.0, 'fpr': 0.0}
+- Notes: Webpage urgency/brand/login/link-count signals random forest baseline
+

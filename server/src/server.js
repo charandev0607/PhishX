@@ -7,11 +7,20 @@ import mongoose from "mongoose";
 import app from "./app.js";
 import { connectDB } from "./config/db.js";
 import { User } from "./models/User.js";
+import { Session } from "./models/Session.js";
 import { initSocket, stopSocketIntervals } from "./sockets/socket.js";
 import { logger } from "./utils/logger.js";
 import { startRetentionEngine, stopRetentionEngine } from "./services/retention.service.js";
 
 const PORT = Number(process.env.PORT || 5000);
+const REQUIRED_ENV_VARS = ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"];
+
+const validateRequiredEnv = () => {
+  const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+  }
+};
 
 const createHttpServer = () => {
   if (process.env.HTTPS_ENABLED !== "true") {
@@ -52,6 +61,7 @@ const ensureBootstrapAdmin = async () => {
 
   const existingAdmin = await User.findOne({ email: adminEmail.toLowerCase() });
   if (existingAdmin) {
+    await Session.deleteMany({ userId: existingAdmin._id });
     return;
   }
 
@@ -61,12 +71,17 @@ const ensureBootstrapAdmin = async () => {
     password: passwordHash,
     role: "admin",
   });
+  const createdAdmin = await User.findOne({ email: adminEmail.toLowerCase() }).select("_id");
+  if (createdAdmin) {
+    await Session.deleteMany({ userId: createdAdmin._id });
+  }
 
   logger.info("Bootstrap admin user created", { email: adminEmail.toLowerCase() });
 };
 
 const bootstrap = async () => {
   try {
+    validateRequiredEnv();
     await connectDB();
     await ensureBootstrapAdmin();
 

@@ -8,6 +8,7 @@ const getThreshold = (name, fallback) => {
 export const calculateRuleBasedScore = (features) => {
   let score = 0;
   const reasons = [];
+  let minimumScore = 0;
 
   if (features.length > 75) {
     score += 20;
@@ -34,14 +35,54 @@ export const calculateRuleBasedScore = (features) => {
     reasons.push("URL does not use HTTPS");
   }
 
+  if (features.isIpHost) {
+    score += 30;
+    reasons.push("URL uses a raw IP address instead of a domain name");
+    minimumScore = Math.max(minimumScore, 75);
+  }
+
+  if (features.isShortener) {
+    score += 18;
+    reasons.push("URL uses a known shortening service");
+    minimumScore = Math.max(minimumScore, 45);
+  }
+
+  if (features.hasFakeHttpsWords) {
+    score += 15;
+    reasons.push("URL uses deceptive trust-building words like https or secure");
+    minimumScore = Math.max(minimumScore, 50);
+  }
+
+  if (features.hasSuspiciousTld) {
+    score += 15;
+    reasons.push(`URL uses a high-risk top-level domain (.${features.tld})`);
+    minimumScore = Math.max(minimumScore, 45);
+  }
+
+  if (features.atSymbolCount > 0) {
+    score += 25;
+    reasons.push("URL contains @ symbol obfuscation");
+    minimumScore = Math.max(minimumScore, 80);
+  }
+
   const { closestDomain, similarity } = findClosestTrustedDomain(features.hostname);
   if (closestDomain && similarity >= 70 && !features.hostname.endsWith(closestDomain)) {
     score += 25;
     reasons.push(`Domain is visually similar to trusted domain (${closestDomain})`);
+    minimumScore = Math.max(minimumScore, 70);
+  }
+
+  if (features.subdomainCount >= 3 && features.hasSuspiciousTld) {
+    minimumScore = Math.max(minimumScore, 70);
+  }
+
+  if (features.hasFakeHttpsWords && features.hasSuspiciousTld) {
+    minimumScore = Math.max(minimumScore, 70);
   }
 
   return {
     score: Math.min(score, 100),
+    minimumScore,
     reasons,
   };
 };

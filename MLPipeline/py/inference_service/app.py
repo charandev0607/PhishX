@@ -71,15 +71,14 @@ _cache_lock = threading.Lock()
 
 
 def _get_or_load_model(cache_key: str, model_name: str):
-    # Load-through cache. We hold the lock during initial load to prevent
-    # concurrent requests from racing and bootstrapping/training twice.
+    cached = _cache.get(cache_key)
+    if cached is not None:
+        return cached
+    loaded = _load_latest(model_name)
     with _cache_lock:
-        cached = _cache.get(cache_key)
-        if cached is not None:
-            return cached
-        loaded = _load_latest(model_name)
-        _cache[cache_key] = loaded
-        return loaded
+        if cache_key not in _cache:
+            _cache[cache_key] = loaded
+        return _cache[cache_key]
 
 
 @app.get("/health")

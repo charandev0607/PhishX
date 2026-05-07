@@ -29,6 +29,7 @@ coverage/
 **/.env.*
 !.env.example
 !**/.env.example
+MLPipeline/artifacts/**/*.joblib
 
 # Editor directories and files
 .vscode/*

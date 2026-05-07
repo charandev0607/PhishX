@@ -10,12 +10,6 @@ python -m venv .venv
 pip install -r MLPipeline\requirements.txt
 ```
 
-### Create datasets (starter)
-
-```powershell
-python MLPipeline\scripts\generate_synthetic_datasets.py
-```
-
 ### Create datasets (production sources)
 
 This downloads:
@@ -48,7 +42,7 @@ python MLPipeline\scripts\run_full_pipeline.py
 
 This runs:
 - URL dataset build (live sources)
-- Missing email/webpage fallback generation (if needed)
+- Uses existing real email/webpage datasets (required)
 - Train all
 - Gated eval all
 

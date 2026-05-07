@@ -1,2 +1,8 @@
-{"subject": "URGENT: Verify your account immediately", "body": "Action required: verify your account now or it will be suspended. Login here: http://paypaI.com.security-verification.example.ru/login", "label": 1}
-{"subject": "Your receipt is available", "body": "Thanks for your purchase. View details at https://www.amazon.com/orders", "label": 0}
+{"subject": "Urgent: verify your account now", "body": "Your mailbox will be suspended. Login immediately at http://secure-login-check.example.com.", "label": 1}
+{"subject": "Payment failed - action required", "body": "We could not process your payment. Confirm card details and password to avoid account lock.", "label": 1}
+{"subject": "Security alert from IT", "body": "Unusual sign-in detected. Validate your credentials at https://company-security-alert.example.com.", "label": 1}
+{"subject": "Doc shared with you", "body": "Open the attached secure document and re-enter your corporate password to decrypt.", "label": 1}
+{"subject": "Team standup moved to 3 PM", "body": "Reminder: daily standup is moved to 3 PM today. No action needed.", "label": 0}
+{"subject": "Your order has shipped", "body": "Tracking update: package shipped and will arrive tomorrow.", "label": 0}
+{"subject": "Project notes", "body": "Please review the meeting notes in the shared drive when available.", "label": 0}
+{"subject": "Invoice paid successfully", "body": "Payment received. Receipt attached for accounting records.", "label": 0}

@@ -32,13 +32,14 @@ export const analyzeUrl = async ({ url, pageHtml = "", scriptContent = "" }) => 
 
   const baseScore = Math.round(ruleResult.score * 0.6 + mlScore * 0.4);
   const sslPenalty = features.protocol === "https:" && !sslResult.valid ? 15 : 0;
-  const finalScore = Math.min(100, baseScore + sslPenalty + credentialSignals.scoreDelta);
+  const heuristicFloor = Number(ruleResult.minimumScore || 0);
+  const finalScore = Math.min(
+    100,
+    Math.max(baseScore + sslPenalty + credentialSignals.scoreDelta, heuristicFloor)
+  );
   const status = classifyRisk(finalScore);
 
   const reasons = [...ruleResult.reasons];
-  if (mlUnavailable) {
-    reasons.push("ML scoring service unavailable; using URL heuristics only");
-  }
   reasons.push(...credentialSignals.reasons);
   if (mlScore >= 70) reasons.push("ML model flagged high phishing probability");
   if (mlScore >= 40 && mlScore < 70) reasons.push("ML model flagged suspicious pattern");
@@ -51,10 +52,15 @@ export const analyzeUrl = async ({ url, pageHtml = "", scriptContent = "" }) => 
     metadata: {
       features,
       ruleScore: ruleResult.score,
+      heuristicFloor,
       mlScore,
       ssl: sslResult.metadata,
       credentialSignals: {
         scoreDelta: credentialSignals.scoreDelta,
+      },
+      ml: {
+        available: !mlUnavailable,
+        fallback: mlUnavailable ? "heuristics_only" : "ml_plus_heuristics",
       },
     },
   };

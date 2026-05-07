@@ -16,6 +16,7 @@ sys.path.insert(0, str(repo_root / "MLPipeline" / "py"))
 from mlpipeline.io_jsonl import write_jsonl
 from mlpipeline.normalize_url import normalize_url_for_dedup, url_to_safe_domain
 from mlpipeline.sources_majestic_million import SourceConfig as MajSourceConfig
+from mlpipeline.sources_majestic_million import download_majestic_million_domains
 from mlpipeline.sources_openphish import SourceConfig as OpenPhishSourceConfig, download_openphish_community_feed
 from mlpipeline.sources_phishtank import SourceConfig as PhishTankSourceConfig, download_phishtank_csv_gz
 
@@ -48,6 +49,10 @@ def _sample(items: Sequence[str], k: int, rng: random.Random) -> List[str]:
     if len(items) <= k:
         return list(items)
     return rng.sample(list(items), k)
+
+
+def mlpipeline_sources_majestic_domains(maj_cfg, max_domains: int) -> Iterator[str]:
+    yield from download_majestic_million_domains(cfg=maj_cfg, limit=max_domains)
 
 
 def main() -> None:
@@ -120,7 +125,7 @@ def main() -> None:
     # -----------------------------
     legit_domains: Set[str] = set()
     maj_count = 0
-    for d in mlpipeline_sources_majestic_domains(  # type: ignore[name-defined]
+    for d in mlpipeline_sources_majestic_domains(
         maj_cfg, max_domains=args.max_majestic_domains
     ):
         # Filter out any phishing registrable domain overlap to reduce label conflict.
@@ -219,13 +224,6 @@ def main() -> None:
     (out_dir / "build_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
 
     print("Built:", out_dir / "url_train.jsonl", "and", out_dir / "url_eval.jsonl")
-
-
-def mlpipeline_sources_majestic_domains(maj_cfg, max_domains: int) -> Iterator[str]:  # helper wrapper
-    from mlpipeline.sources_majestic_million import download_majestic_million_domains
-
-    yield from download_majestic_million_domains(cfg=maj_cfg, limit=max_domains)
-
 
 if __name__ == "__main__":
     main()

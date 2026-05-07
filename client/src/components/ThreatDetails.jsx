@@ -104,7 +104,7 @@ const ThreatDetails = ({ threat, onBack }) => {
     });
 
     autoTable(doc, {
-      startY: (doc.lastAutoTable?.finalY ?? 30) + 8,
+      startY: (doc.lastAutoTable?.finalY || 40) + 8,
       head: [['AI Detection Reasons']],
       body: (displayThreat.reasons && displayThreat.reasons.length ? displayThreat.reasons : ['No reasons available']).map((reason) => [String(reason)]),
       styles: { fontSize: 9 },

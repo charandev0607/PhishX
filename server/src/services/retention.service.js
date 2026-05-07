@@ -1,5 +1,7 @@
 import { Incident } from "../models/Incident.js";
 import { AuditLog } from "../models/AuditLog.js";
+import { MLFeedback } from "../models/MLFeedback.js";
+import { MLDailyMetrics } from "../models/MLDailyMetrics.js";
 import { logger } from "../utils/logger.js";
 
 let retentionTimer = null;
@@ -11,15 +13,19 @@ const runRetentionCleanup = async () => {
   const retentionDays = getRetentionDays();
   const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
-  const [incidentResult, auditResult] = await Promise.all([
+  const [incidentResult, auditResult, mlFeedbackResult, mlDailyMetricsResult] = await Promise.all([
     Incident.deleteMany({ createdAt: { $lt: cutoff } }),
     AuditLog.deleteMany({ timestamp: { $lt: cutoff } }),
+    MLFeedback.deleteMany({ createdAt: { $lt: cutoff } }),
+    MLDailyMetrics.deleteMany({ updatedAt: { $lt: cutoff } }),
   ]);
 
   logger.info("Retention cleanup completed", {
     retentionDays,
     incidentsRemoved: incidentResult.deletedCount || 0,
     auditLogsRemoved: auditResult.deletedCount || 0,
+    mlFeedbackRemoved: mlFeedbackResult.deletedCount || 0,
+    mlDailyMetricsRemoved: mlDailyMetricsResult.deletedCount || 0,
   });
 };
 

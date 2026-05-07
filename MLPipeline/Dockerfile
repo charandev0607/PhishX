@@ -12,7 +12,4 @@ COPY . /app/MLPipeline
 
 EXPOSE 8010
 
-# Bootstrapping/training is triggered on-demand by the inference service if
-# artifacts are missing. This keeps container startup reliable even when
-# datasets/artifacts volumes are empty on first run.
-CMD ["uvicorn", "inference_service.app:app", "--app-dir", "/app/MLPipeline/py", "--host", "0.0.0.0", "--port", "8010"]
+CMD ["sh", "-c", "python /app/MLPipeline/scripts/retrain_all.py && uvicorn inference_service.app:app --app-dir /app/MLPipeline/py --host 0.0.0.0 --port 8010"]
