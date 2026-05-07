@@ -12,18 +12,18 @@ import {
 const router = Router();
 
 router.get("/dashboard", authenticate, authorize("admin"), getDashboardController);
-router.get("/threat-feed", authenticate, authorize("admin", "analyst", "ml_engineer"), getThreatFeedController);
+router.get("/threat-feed", authenticate, authorize("admin", "end_user", "ml_engineer"), getThreatFeedController);
 router.post(
   "/report-link",
   authenticate,
-  authorize("admin", "analyst", "ml_engineer"),
+  authorize("admin", "end_user", "ml_engineer"),
   validate(schemas.reportLink),
   reportSuspiciousLinkController
 );
 router.get(
   "/stats/blocked-attempts",
   authenticate,
-  authorize("admin", "analyst", "ml_engineer"),
+  authorize("admin", "end_user", "ml_engineer"),
   getBlockedAttemptsStatsController
 );
 router.post(

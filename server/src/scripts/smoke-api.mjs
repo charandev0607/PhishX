@@ -110,7 +110,7 @@ async function main() {
 
   const signup = await jsonFetch("POST", "/auth/signup", { body: { email: analystEmail, password: analystPass } });
   ok("signup 201", signup.status === 201);
-  ok("signup role analyst", signup.data?.data?.user?.role === "analyst");
+  ok("signup role end_user", signup.data?.data?.user?.role === "end_user");
   ok("signup returns tokens", !!(signup.data?.data?.accessToken && signup.data?.data?.refreshToken));
 
   const dup = await jsonFetch("POST", "/auth/signup", { body: { email: analystEmail, password: analystPass } });
@@ -420,8 +420,8 @@ async function main() {
   const retrainNoAuth = await jsonFetch("POST", "/ml/retrain");
   ok("ml retrain no auth → 401", retrainNoAuth.status === 401);
 
-  const retrainAnalyst = await jsonFetch("POST", "/ml/retrain", { token: access2 });
-  ok("ml retrain analyst forbidden → 403", retrainAnalyst.status === 403);
+  const retrainEndUser = await jsonFetch("POST", "/ml/retrain", { token: access2 });
+  ok("ml retrain end_user forbidden → 403", retrainEndUser.status === 403);
 
   // Admin flow
   const adminEmail = process.env.ADMIN_EMAIL;
@@ -440,10 +440,10 @@ async function main() {
         users.data?.data?.items?.find((u) => u.email === analystEmail)?.id ||
         users.data?.data?.items?.find((u) => u.email === analystEmail)?._id;
 
-      const analystBlocked = await jsonFetch("GET", "/admin/users", { token: access2 });
-      ok("analyst admin/users → 403", analystBlocked.status === 403);
+      const endUserBlocked = await jsonFetch("GET", "/admin/users", { token: access2 });
+      ok("end_user admin/users → 403", endUserBlocked.status === 403);
 
-      const usersByRole = await jsonFetch("GET", "/admin/users?role=analyst", { token: adminAccess });
+  const usersByRole = await jsonFetch("GET", "/admin/users?role=end_user", { token: adminAccess });
       ok("admin users role filter → 200", usersByRole.status === 200);
       const usersBySearch = await jsonFetch("GET", `/admin/users?search=${encodeURIComponent(analystEmail.split("@")[0])}`, {
         token: adminAccess,
@@ -457,11 +457,11 @@ async function main() {
         });
         ok("admin update role invalid value → 400", badRole.status === 400);
 
-        const analystRole = await jsonFetch("PATCH", `/admin/users/${targetUserId}/role`, {
+        const endUserRole = await jsonFetch("PATCH", `/admin/users/${targetUserId}/role`, {
           token: adminAccess,
-          body: { role: "analyst" },
+          body: { role: "end_user" },
         });
-        ok("admin update role to analyst → 200", analystRole.status === 200);
+        ok("admin update role to end_user → 200", endUserRole.status === 200);
 
         const goodRole = await jsonFetch("PATCH", `/admin/users/${targetUserId}/role`, {
           token: adminAccess,
@@ -495,11 +495,11 @@ async function main() {
       const emptyPol = await jsonFetch("PUT", "/admin/policies", { token: adminAccess, body: {} });
       ok("policy empty body → 400", emptyPol.status === 400);
 
-      const analystPolicyDenied = await jsonFetch("PUT", "/admin/policies", {
+      const endUserPolicyDenied = await jsonFetch("PUT", "/admin/policies", {
         token: access2,
         body: { autoBlockThreshold: 60 },
       });
-      ok("analyst policy update denied → 403", analystPolicyDenied.status === 403);
+      ok("end_user policy update denied → 403", endUserPolicyDenied.status === 403);
 
       const polAgain = await jsonFetch("GET", "/admin/policies", { token: adminAccess });
       ok(

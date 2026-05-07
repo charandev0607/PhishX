@@ -133,17 +133,17 @@ const seed = async () => {
       refreshTokenHash: null,
     },
     {
-      email: "analyst1@phishx.local",
-      password: await bcrypt.hash("AnalystPass123!", 10),
-      role: "analyst",
+      email: "user1@phishx.local",
+      password: await bcrypt.hash("UserPass123!", 10),
+      role: "end_user",
       failedAttempts: 0,
       lockUntil: null,
       refreshTokenHash: null,
     },
     {
-      email: "analyst2@phishx.local",
-      password: await bcrypt.hash("AnalystPass123!", 10),
-      role: "analyst",
+      email: "user2@phishx.local",
+      password: await bcrypt.hash("UserPass123!", 10),
+      role: "end_user",
       failedAttempts: 0,
       lockUntil: null,
       refreshTokenHash: null,
@@ -187,8 +187,8 @@ const seed = async () => {
   console.log(`Policy: ${policy.key}`);
   console.log("Login credentials:");
   console.log(`- Admin: ${adminEmail} / ${adminPassword}`);
-  console.log("- Analyst: analyst1@phishx.local / AnalystPass123!");
-  console.log("- Analyst: analyst2@phishx.local / AnalystPass123!");
+  console.log("- End_User: user1@phishx.local / UserPass123!");
+  console.log("- End_User: user2@phishx.local / UserPass123!");
 };
 
 seed()

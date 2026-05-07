@@ -5,6 +5,6 @@ import { validate, schemas } from "../middleware/validate.middleware.js";
 
 const router = Router();
 
-router.get("/incidents", authenticate, authorize("admin", "analyst"), validate(schemas.incidentsQuery, "query"), getIncidents);
+router.get("/incidents", authenticate, authorize("admin", "end_user"), validate(schemas.incidentsQuery, "query"), getIncidents);
 
 export default router;

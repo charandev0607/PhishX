@@ -67,7 +67,7 @@ export const initSocket = (httpServer) => {
         return next(new Error("Unauthorized socket connection"));
       }
       const user = await User.findById(decoded.sub).select("role");
-      if (!user || !["admin", "analyst", "ml_engineer"].includes(user.role)) {
+      if (!user || !["admin", "end_user", "ml_engineer"].includes(user.role)) {
         return next(new Error("Forbidden socket role"));
       }
       return next();
