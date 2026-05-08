@@ -5,6 +5,7 @@ const VALID_THREAT_TYPES = new Set([
   "spam",
   "credential_harvesting",
   "zero_day",
+  "safe",
 ]);
 
 export function validateIncident(payload) {

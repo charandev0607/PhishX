@@ -5,7 +5,7 @@ import sys
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import precision_recall_fscore_support, roc_auc_score
+from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
@@ -16,6 +16,7 @@ sys.path.insert(0, str(repo_root / "MLPipeline" / "py"))
 from mlpipeline.features_url import FEATURE_NAMES, featurize_url
 from mlpipeline.io_jsonl import read_jsonl
 from mlpipeline.registry import ModelCard, save_model_bundle, utc_now_iso
+from mlpipeline.thresholds import select_threshold
 
 
 def main() -> None:
@@ -57,11 +58,17 @@ def main() -> None:
     clf.fit(Xtr, ytr)
 
     proba = clf.predict_proba(Xte)[:, 1]
-    pred = (proba >= 0.5).astype(int)
-    prec, rec, f1, _ = precision_recall_fscore_support(yte, pred, average="binary", zero_division=0)
+    selected_threshold, selected_metrics = select_threshold(yte, proba)
     auc = roc_auc_score(yte, proba)
 
-    metrics = {"precision": float(prec), "recall": float(rec), "f1": float(f1), "auc": float(auc)}
+    metrics = {
+        "accuracy": float(selected_metrics["accuracy"]),
+        "precision": float(selected_metrics["precision"]),
+        "recall": float(selected_metrics["recall"]),
+        "f1": float(selected_metrics["f1"]),
+        "auc": float(auc),
+        "fpr": float(selected_metrics["fpr"]),
+    }
     version = utc_now_iso().replace(":", "").replace("-", "").split(".")[0]
     card = ModelCard(
         name="url_logreg",
@@ -69,9 +76,9 @@ def main() -> None:
         created_at=utc_now_iso(),
         framework="scikit-learn",
         feature_names=FEATURE_NAMES,
-        threshold=0.5,
+        threshold=selected_threshold,
         metrics=metrics,
-        notes="URL lexical/structural logistic regression baseline",
+        notes="URL lexical/structural logistic regression with threshold tuning",
     )
 
     save_model_bundle(repo_root=repo_root, model_name="url_logreg", version=version, model_obj=clf, card=card)

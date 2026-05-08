@@ -8,9 +8,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # Ensure local package imports work when script is executed directly.
 sys.path.insert(0, str(REPO_ROOT / "MLPipeline" / "py"))
 
-from mlpipeline.io_jsonl import read_jsonl, write_jsonl
-
-
 def _seed_url_rows():
     phishing = [
         {"url": "https://paypaI-login-check.example.com", "label": 1},
@@ -125,6 +122,7 @@ def _dedup(rows, key_fn):
 
 
 def merge_dataset(base: Path, incremental: Path, key_field: str) -> None:
+    from mlpipeline.io_jsonl import read_jsonl, write_jsonl
     base_rows = read_jsonl(base)
     inc_rows = read_jsonl(incremental) if incremental.exists() else []
     merged = _dedup(base_rows + inc_rows, key_fn=lambda r: (r.get(key_field), int(r.get("label", 0))))

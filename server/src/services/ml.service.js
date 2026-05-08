@@ -35,18 +35,43 @@ const postJson = async (url, body, { timeoutMs = DEFAULT_ML_TIMEOUT_MS } = {}) =
 export const getUrlMLScore = async ({ url }) => {
   const base = process.env.ML_SERVICE_URL || DEFAULT_ML_URL;
   const data = await postJson(`${base}/score/url`, { url });
-  // Convert 0..1 probability to 0..100 score expected by analysis.service.js
-  return Math.max(0, Math.min(100, Math.round(Number(data.score) * 100)));
+  return {
+    score: Math.max(0, Math.min(100, Math.round(Number(data.score) * 100))),
+    probability: Math.max(0, Math.min(100, Math.round(Number(data.probability) * 100))),
+    threshold: Math.max(0, Math.min(100, Math.round(Number(data.threshold) * 100))),
+    confidence: Math.max(0, Math.min(100, Math.round(Number(data.confidence) * 100))),
+    decision: data.decision || "safe",
+    model: data.model || "url_logreg",
+    version: data.version,
+    details: data.features || {},
+  };
 };
 
 export const getEmailMLScore = async ({ subject = "", body = "" }) => {
   const base = process.env.ML_SERVICE_URL || DEFAULT_ML_URL;
   const data = await postJson(`${base}/score/email`, { subject, body });
-  return Math.max(0, Math.min(100, Math.round(Number(data.score) * 100)));
+  return {
+    score: Math.max(0, Math.min(100, Math.round(Number(data.score) * 100))),
+    probability: Math.max(0, Math.min(100, Math.round(Number(data.probability) * 100))),
+    threshold: Math.max(0, Math.min(100, Math.round(Number(data.threshold) * 100))),
+    confidence: Math.max(0, Math.min(100, Math.round(Number(data.confidence) * 100))),
+    decision: data.decision || "safe",
+    model: data.model || "email_tfidf_logreg",
+    version: data.version,
+  };
 };
 
 export const getWebpageMLScore = async ({ text = "" }) => {
   const base = process.env.ML_SERVICE_URL || DEFAULT_ML_URL;
   const data = await postJson(`${base}/score/webpage`, { text });
-  return Math.max(0, Math.min(100, Math.round(Number(data.score) * 100)));
+  return {
+    score: Math.max(0, Math.min(100, Math.round(Number(data.score) * 100))),
+    probability: Math.max(0, Math.min(100, Math.round(Number(data.probability) * 100))),
+    threshold: Math.max(0, Math.min(100, Math.round(Number(data.threshold) * 100))),
+    confidence: Math.max(0, Math.min(100, Math.round(Number(data.confidence) * 100))),
+    decision: data.decision || "safe",
+    model: data.model || "webpage_signals_rf",
+    version: data.version,
+    details: data.signals || {},
+  };
 };

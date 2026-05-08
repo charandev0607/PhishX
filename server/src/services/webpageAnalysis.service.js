@@ -65,10 +65,12 @@ export const analyzeWebpage = async ({ text = "" }) => {
     heuristicFloor = Math.max(heuristicFloor, 75);
   }
 
+  let ml = null;
   let mlScore = 0;
   let mlUnavailable = false;
   try {
-    mlScore = await getWebpageMLScore({ text });
+    ml = await getWebpageMLScore({ text });
+    mlScore = ml.score;
   } catch {
     mlUnavailable = true;
     if (isMlStrictModeEnabled()) {
@@ -80,7 +82,7 @@ export const analyzeWebpage = async ({ text = "" }) => {
 
   const score = Math.min(100, Math.max(Math.round(ruleScore * 0.4 + mlScore * 0.6), heuristicFloor));
   if (mlUnavailable) reasons.push("ML scoring service unavailable; using webpage heuristics only");
-  if (mlScore >= 70) reasons.push("ML model flagged high phishing probability in webpage content");
+  if (!mlUnavailable && ml?.decision === "phishing" && mlScore >= 70) reasons.push("ML model flagged high phishing probability in webpage content");
   if (mlScore >= 40 && mlScore < 70) reasons.push("ML model flagged suspicious webpage signals");
 
   return {
@@ -92,6 +94,18 @@ export const analyzeWebpage = async ({ text = "" }) => {
       heuristicFloor,
       mlScore,
       mlUnavailable,
+      ml: mlUnavailable
+        ? { available: false, fallback: "heuristics_only" }
+        : {
+            available: true,
+            fallback: "ml_plus_heuristics",
+            probability: ml?.probability ?? null,
+            threshold: ml?.threshold ?? null,
+            confidence: ml?.confidence ?? null,
+            decision: ml?.decision ?? null,
+            model: ml?.model ?? null,
+            version: ml?.version ?? null,
+          },
       textLength: text.length,
       suspiciousHits,
       brandHits,

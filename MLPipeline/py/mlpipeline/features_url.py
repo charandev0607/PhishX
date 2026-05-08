@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 import math
 import re
 from dataclasses import dataclass
@@ -7,6 +8,10 @@ from typing import Dict, List, Tuple
 from urllib.parse import urlparse
 
 import tldextract
+
+
+_TLD_CACHE_DIR = Path(__file__).resolve().parents[2] / "cache" / "tldextract"
+_EXTRACTOR = tldextract.TLDExtract(cache_dir=str(_TLD_CACHE_DIR), suffix_list_urls=None)
 
 
 SUSPICIOUS_WORDS = [
@@ -77,7 +82,7 @@ def featurize_url(raw_url: str) -> Tuple[List[float], Dict[str, float]]:
     path = u.path or ""
     query = u.query or ""
 
-    ext = tldextract.extract(host)
+    ext = _EXTRACTOR(host)
     registrable = (".".join([p for p in [ext.domain, ext.suffix] if p]) or host).lower()
 
     num_special = _count(raw_url, re.compile(r"[^a-zA-Z0-9/:.?=&_-]"))

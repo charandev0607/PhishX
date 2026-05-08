@@ -1,0 +1,29 @@
+{
+  "name": "webpage_signals_rf",
+  "version": "20260508T053246",
+  "created_at": "2026-05-08T05:32:46.746361+00:00",
+  "framework": "scikit-learn",
+  "feature_names": [
+    "urgency_hits",
+    "brand_hits",
+    "login_hits",
+    "threat_hits",
+    "text_len",
+    "num_links",
+    "num_exclamations",
+    "num_digits",
+    "uppercase_ratio",
+    "avg_token_len",
+    "has_domain_like_text"
+  ],
+  "threshold": 0.32,
+  "metrics": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "auc": 1.0,
+    "fpr": 0.0
+  },
+  "notes": "Webpage urgency/brand/login/link-count signals random forest baseline"
+}

@@ -60,3 +60,8 @@
 - Metrics: {'accuracy': 1.0, 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'auc': 1.0, 'fpr': 0.0}
 - Notes: Webpage urgency/brand/login/link-count signals random forest baseline
 
+## 20260508T053246
+- Created: 2026-05-08T05:32:46.746361+00:00
+- Metrics: {'accuracy': 1.0, 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'auc': 1.0, 'fpr': 0.0}
+- Notes: Webpage urgency/brand/login/link-count signals random forest baseline
+
