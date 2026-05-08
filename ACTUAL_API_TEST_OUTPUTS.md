@@ -4,16 +4,24 @@ Source run command:
 
 - `npm run test:api`
 
-Run result observed:
+## Latest Observed Automated Result
 
-- `Done: 72 passed, 0 failed`
+- `72 passed, 0 failed`
 - Exit code: `0`
 
----
+## Relationship to the Master Test Document
+
+The master test document now tracks `78` listed test cases across `17` modules.
+
+The automated smoke/API output still reports `72` passing assertions because:
+
+- some master cases are documentation-level traceability splits of the same endpoint behavior
+- some validations are phrased as UI or timing observations rather than distinct backend assertions
+- the smoke suite remains the current executable API baseline in the repository
 
 ## Key Endpoint Outputs Observed
 
-The following are actual statuses from the latest test run output.
+The following are actual statuses from the latest automated run output.
 
 ### Auth
 
@@ -35,7 +43,7 @@ The following are actual statuses from the latest test run output.
 - `POST /api/v1/url-analyze` (valid/legit URL): `201`
 - `POST /api/v1/url-analyze` (invalid URI): `400`
 - `POST /api/v1/url-analyze` (missing url field): `400`
-- `POST /api/v1/url-analyze` (XSS-like input): `201` (sanitized/rejected path validated by test)
+- `POST /api/v1/url-analyze` (XSS-like input): `201`
 - `POST /api/v1/url-analyze` (HTTP URL): `201`
 - `POST /api/v1/url-analyze` (lookalike-ish): `201`
 
@@ -96,10 +104,8 @@ The following are actual statuses from the latest test run output.
 - `GET /api/v1/stats/blocked-attempts`: `200`
 - `POST /api/v1/reports/generate`: `200`
 
----
-
 ## Final Observed Summary
 
-- Backend API test suite completed successfully.
-- All assertions in smoke suite passed.
-- Total observed from run: `72 passed, 0 failed`.
+- Backend API smoke suite completed successfully.
+- All automated assertions passed.
+- Latest observed automated total: `72 passed, 0 failed`.

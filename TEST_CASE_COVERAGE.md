@@ -1,12 +1,13 @@
 # Project Test Case Coverage
 
-This file tracks how the 70 master test cases are covered inside the project.
+This file tracks how the current master test document maps onto the implementation and the available execution paths in the repo.
 
 Primary references:
 
-- Master list: `MASTER_TEST_CASES_70.md` (contains 70 total test cases)
+- Master list: `MASTER_TEST_CASES_70.md` (currently documents 78 listed test cases across 17 modules)
 - API automation: `server/src/scripts/smoke-api.mjs`
-- Postman/manual execution guide: `POSTMAN_TC1_TO_TC7.md`
+- Manual/API execution notes: `POSTMAN_TC1_TO_TC7.md`
+- Latest observed smoke outputs: `ACTUAL_API_TEST_OUTPUTS.md`
 
 ## Coverage Summary by Module
 
@@ -14,34 +15,55 @@ Primary references:
 |---|---:|---|
 | User Registration | 7 | Automated in `smoke-api.mjs` |
 | User Login | 7 | Automated in `smoke-api.mjs` |
-| URL Analysis | 8 | Automated in `smoke-api.mjs` |
-| Email + Webpage Analysis | 8 | Automated in `smoke-api.mjs` |
+| URL Analysis | 7 | Automated in `smoke-api.mjs` |
+| Email Analysis | 6 | Automated in `smoke-api.mjs` |
 | Incident Management | 6 | Automated in `smoke-api.mjs` |
-| Admin User Management | 6 | Automated in `smoke-api.mjs` (requires admin env) |
-| Admin Policy Management | 6 | Automated in `smoke-api.mjs` (requires admin env) |
+| Admin User Management | 6 | Automated in `smoke-api.mjs` |
+| Admin Policy Management | 6 | Automated in `smoke-api.mjs` |
 | ML Feedback & Metrics | 6 | Automated in `smoke-api.mjs` |
-| System Health & Real-Time Events | 5 | Automated in `smoke-api.mjs` |
-| Security & Rate Limiting | 6 | Automated in `smoke-api.mjs` (`10.TC1` optional via `SMOKE_RUN_RATE_LIMIT_TEST=true`) |
-| Real-Time Dashboard | 2 | API coverage automated; UI refresh behavior verified via manual/Postman flow |
+| Real-Time Dashboard | 2 | API behavior automated; live UI refresh remains manual/observational |
 | Monitor Threat Feed | 2 | Automated in `smoke-api.mjs` |
 | Report Suspicious Link | 2 | Automated in `smoke-api.mjs` |
 | Generate Reports | 1 | Automated in `smoke-api.mjs` |
+| Collect Incident Data | 3 | Covered by the incident list/filter/auth smoke checks; tracked separately here for traceability |
+| Update Threat Intelligence View | 3 | Covered by threat-feed and new-incident flows; tracked separately here for traceability |
+| Blocked Attempts Statistics | 3 | Covered by report-link and blocked-attempts checks; tracked separately here for traceability |
+| System Health & Real-Time Events | 5 | Automated in `smoke-api.mjs` |
+| Security & Rate Limiting | 6 | Mostly automated; rate-limit stress remains opt-in |
 
-## How to Run Full Project Coverage
+## Count Reconciliation
 
-1. Ensure backend and database are running.
-2. Set admin credentials in `server/.env` for admin-only checks:
+- Master document total: `78` listed test cases
+- Latest smoke-suite total: `72` passed assertions
+
+These numbers differ because the master document now splits several behaviors into separate traceability-oriented cases:
+
+- `Collect Incident Data`
+- `Update Threat Intelligence View`
+- `Blocked Attempts Statistics`
+
+Those suites largely map to endpoint behaviors that are already exercised by the smoke suite rather than representing entirely new backend features.
+
+## How to Run Coverage
+
+1. Ensure the backend can start successfully.
+2. Ensure admin credentials exist in `server/.env`:
    - `ADMIN_EMAIL`
    - `ADMIN_PASSWORD`
-3. Run smoke checks:
+3. Run the smoke suite:
    - `npm run smoke -w server`
-4. For rate-limit stress testcase (`10.TC1`), run:
-   - `SMOKE_RUN_RATE_LIMIT_TEST=true npm run smoke -w server`
+4. Run the full API workflow from the repo root:
+   - `npm run test:api`
+
+## Optional Checks
+
+- Rate-limit stress:
+  - `SMOKE_RUN_RATE_LIMIT_TEST=true npm run smoke -w server`
+- ML retrain execution path:
+  - `SMOKE_RUN_ML_RETRAIN_TEST=true npm run smoke -w server`
 
 ## Notes
 
-- The smoke suite intentionally keeps load low by default; rate-limit stress is opt-in.
-- Dashboard live-refresh timing validation is inherently UI behavior and should be verified from the dashboard flow in addition to API checks.
-- ML baseline readiness is enforced by smoke checks that verify required dataset files exist before API validations.
-- Optional ML retraining execution check is available via `SMOKE_RUN_ML_RETRAIN_TEST=true`.
-- Runtime ML readiness is available at `GET /api/v1/ml/readiness` for `admin`, `analyst`, and `ml_engineer`.
+- The smoke suite is the authoritative automated API signal currently present in the repository.
+- Some dashboard and threat-view validations are inherently time-based or UI-observational, so they should still be manually verified in addition to smoke coverage.
+- The master document uses the pasted business-facing wording as the source of truth for documentation, even where the current implementation uses `end_user` and `ml_engineer` role names internally.
