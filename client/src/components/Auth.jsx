@@ -6,15 +6,12 @@ const Auth = ({ onLogin }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [resetToken, setResetToken] = useState('');
     const [newPassword, setNewPassword] = useState('');
-    const [issuedResetToken, setIssuedResetToken] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [showResetLink, setShowResetLink] = useState(false);
     const [otp, setOtp] = useState('');
-    const [otpSent, setOtpSent] = useState(false);
 
 
     
@@ -40,7 +37,6 @@ const Auth = ({ onLogin }) => {
                     return;
                 }
                 setSuccess('OTP sent to your email.');
-                setOtpSent(true);
                 setMode('otp_verify');
             } catch {
                 setError('Unable to reach backend authentication service.');
@@ -101,7 +97,6 @@ const Auth = ({ onLogin }) => {
                 setSuccess('Password updated successfully. Please login.');
                 setMode('login');
                 setOtp('');
-                setOtpSent(false);
                 setNewPassword('');
                 setConfirmPassword('');
                 setPassword('');

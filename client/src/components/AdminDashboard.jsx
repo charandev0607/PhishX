@@ -48,7 +48,7 @@ const normalizeIncidentRecord = (incident) => {
 };
 
 const AdminDashboard = ({ onSelectThreat, accessToken }) => {
-  const [dashboardData, setDashboardData] = useState(null);
+  const [, setDashboardData] = useState(null);
   const [incidents, setIncidents] = useState([]);
   const [threatFeed, setThreatFeed] = useState([]);
   const [systemHealth, setSystemHealth] = useState(null);
