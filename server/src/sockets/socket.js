@@ -25,7 +25,9 @@ const buildAllowedOrigins = () => {
 const allowedOrigins = buildAllowedOrigins();
 
 const buildHealthSnapshot = () => {
+  const startedAt = process.hrtime.bigint();
   const memory = process.memoryUsage();
+  const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
   return {
     uptime: process.uptime(),
     memory: {
@@ -34,6 +36,8 @@ const buildHealthSnapshot = () => {
       heapUsed: memory.heapUsed,
       external: memory.external,
     },
+    responseTime: Number(elapsedMs.toFixed(2)),
+    status: "online",
     timestamp: new Date().toISOString(),
   };
 };

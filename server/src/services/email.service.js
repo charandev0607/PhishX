@@ -1,13 +1,28 @@
-import { Resend } from 'resend';
+let resendClientPromise;
 
-const resend = process.env.RESEND_API_KEY 
-  ? new Resend(process.env.RESEND_API_KEY)
-  : (() => {
-      console.warn('RESEND_API_KEY is missing. Email service will run in MOCK mode.');
-      return null;
-    })();
+const getResendClient = async () => {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY is missing. Email service will run in MOCK mode.');
+    return null;
+  }
+
+  if (!resendClientPromise) {
+    resendClientPromise = import('resend')
+      .then(({ Resend }) => new Resend(process.env.RESEND_API_KEY))
+      .catch((error) => {
+        console.warn(
+          `Resend package is unavailable. Email service will run in MOCK mode. (${error.code || error.message})`
+        );
+        return null;
+      });
+  }
+
+  return resendClientPromise;
+};
 
 export const sendOtpEmail = async (email, otp) => {
+  const resend = await getResendClient();
+
   if (!resend) {
     console.log(`[EMAIL MOCK] To: ${email}, Subject: Password Reset OTP, Body: Your OTP is ${otp}`);
     return { success: true, mock: true };

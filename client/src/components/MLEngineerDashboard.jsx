@@ -13,45 +13,50 @@ const MLEngineerDashboard = () => {
     const [metricsRows, setMetricsRows] = useState([]);
     const [mlReadiness, setMlReadiness] = useState(null);
     const [blockedAttempts, setBlockedAttempts] = useState(0);
+    const [lastRefreshAt, setLastRefreshAt] = useState(null);
+    const [backendReachable, setBackendReachable] = useState(true);
 
     const loadDashboardData = async () => {
-        try {
-            const [metricsResp, readinessResp, blockedResp] = await Promise.all([
-                apiFetch('/api/v1/ml/metrics?days=14'),
-                apiFetch('/api/v1/ml/readiness'),
-                apiFetch('/api/v1/stats/blocked-attempts'),
-            ]);
+        const requests = await Promise.allSettled([
+            apiFetch('/api/v1/ml/metrics?days=14'),
+            apiFetch('/api/v1/ml/readiness'),
+            apiFetch('/api/v1/stats/blocked-attempts'),
+        ]);
 
-            if (metricsResp.ok) {
-                const json = await metricsResp.json();
-                setMetricsRows(json?.data?.rows ?? []);
-            } else {
-                setMetricsRows([]);
+        const parseJsonIfOk = async (result) => {
+            if (result.status !== 'fulfilled') return null;
+            const response = result.value;
+            if (!response?.ok) return null;
+            try {
+                return await response.json();
+            } catch {
+                return null;
             }
+        };
 
-            if (readinessResp.ok) {
-                const json = await readinessResp.json();
-                setMlReadiness(json?.data ?? null);
-            } else {
-                setMlReadiness(null);
-            }
+        const [metricsJson, readinessJson, blockedJson] = await Promise.all(requests.map(parseJsonIfOk));
+        const anySuccess = requests.some((result) => result.status === 'fulfilled' && result.value?.ok);
 
-            if (blockedResp.ok) {
-                const json = await blockedResp.json();
-                setBlockedAttempts(Number(json?.data?.blocked_attempts || 0));
-            } else {
-                setBlockedAttempts(0);
-            }
-        } catch {
-            setMetricsRows([]);
-            setMlReadiness(null);
-            setBlockedAttempts(0);
+        setBackendReachable(anySuccess);
+
+        if (Array.isArray(metricsJson?.data?.rows)) {
+            setMetricsRows(metricsJson.data.rows);
         }
+
+        if (readinessJson?.data) {
+            setMlReadiness(readinessJson.data);
+        }
+
+        if (blockedJson?.data) {
+            setBlockedAttempts(Number(blockedJson.data.blocked_attempts || 0));
+        }
+
+        setLastRefreshAt(new Date().toISOString());
     };
 
     useEffect(() => {
         loadDashboardData();
-        const intervalId = setInterval(loadDashboardData, 15000);
+        const intervalId = setInterval(loadDashboardData, 5000);
         return () => clearInterval(intervalId);
     }, []);
 
@@ -87,11 +92,13 @@ const MLEngineerDashboard = () => {
             const retrainResp = await apiFetch('/api/v1/ml/retrain', { method: 'POST' });
             const retrainJson = await retrainResp.json().catch(() => ({}));
             if (!retrainResp.ok) {
-                setPipelineMessage(retrainJson?.message || 'Retraining failed.');
+                const detail = retrainJson?.data?.message || retrainJson?.message || 'Retraining failed.';
+                setPipelineMessage(detail);
                 return;
             }
             await loadDashboardData();
-            setPipelineMessage(retrainJson?.message || 'Retraining completed and metrics refreshed.');
+            const detail = retrainJson?.data?.message || retrainJson?.message || 'Retraining completed and metrics refreshed.';
+            setPipelineMessage(detail);
         } finally {
             setIsUpdatingModels(false);
         }
@@ -173,7 +180,11 @@ const MLEngineerDashboard = () => {
                                     </div>
                                     <div className="stat-value version-value">{modelVersionLabel || 'Unavailable'}</div>
                                     <p className="description">
-                                        {mlReadiness?.ready ? 'ML system ready.' : 'ML system not fully ready.'}
+                                        {!backendReachable
+                                            ? 'Backend ML endpoints are unreachable.'
+                                            : mlReadiness?.ready
+                                                ? 'ML system ready.'
+                                                : 'ML system not fully ready.'}
                                         {' '}
                                         Last artifact update: {latestModelUpdate ? new Date(latestModelUpdate).toLocaleString() : 'N/A'}
                                     </p>
@@ -194,6 +205,12 @@ const MLEngineerDashboard = () => {
                             <div className="action-panel glass-panel">
                                 <h3>Update Threat Intelligence Pipeline</h3>
                                 <p>Process validated ML feedback, refresh incremental datasets, retrain all three phishing models, and update the latest production artifacts.</p>
+                                <p className="description">Last dashboard refresh: {lastRefreshAt ? new Date(lastRefreshAt).toLocaleTimeString() : 'N/A'}</p>
+                                {!backendReachable ? (
+                                    <p className="description" style={{ color: '#ff8c8c' }}>
+                                        Backend is currently unreachable. Start the backend and ML service with `npm run dev` from the repo root.
+                                    </p>
+                                ) : null}
 
                                 <div className="pipeline-steps">
                                     <div className={`step ${isUpdatingModels ? 'processing' : ''}`}>1. Export Feedback</div>
@@ -239,6 +256,9 @@ const MLEngineerDashboard = () => {
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
+                                {!blockedStatsData.length ? (
+                                    <p className="description">No ML feedback has been recorded yet, so there are no daily feedback/error statistics to chart.</p>
+                                ) : null}
                             </div>
                         </div>
                     )}
@@ -261,6 +281,9 @@ const MLEngineerDashboard = () => {
                                         </LineChart>
                                     </ResponsiveContainer>
                                 </div>
+                                {!modelPerformanceData.length ? (
+                                    <p className="description">No validated ML feedback metrics are available yet, so accuracy and precision history is still empty.</p>
+                                ) : null}
                             </div>
                         </div>
                     )}
