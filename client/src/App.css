@@ -5,6 +5,10 @@
   width: 100%;
 }
 
+
+
+
+
 /* Demo Controls for switching views */
 .demo-controls {
   position: fixed;
@@ -26,6 +30,9 @@
   align-items: center;
   gap: 10px;
 }
+
+
+
 
 .demo-header svg {
   width: 24px;

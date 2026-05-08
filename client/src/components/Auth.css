@@ -9,6 +9,8 @@
     overflow: hidden;
 }
 
+
+
 .auth-container::before {
     content: '';
     position: absolute;

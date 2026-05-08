@@ -16,6 +16,8 @@ const MLEngineerDashboard = () => {
     const [lastRefreshAt, setLastRefreshAt] = useState(null);
     const [backendReachable, setBackendReachable] = useState(true);
 
+
+    
     const loadDashboardData = async () => {
         const requests = await Promise.allSettled([
             apiFetch('/api/v1/ml/metrics?days=14'),

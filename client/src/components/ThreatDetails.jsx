@@ -14,6 +14,8 @@ const ThreatDetails = ({ threat, onBack }) => {
       return false;
     }
   };
+
+  
   if (!threat) {
     return (
       <div className="threat-layout">
