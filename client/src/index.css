@@ -12,6 +12,9 @@
   --glass-backdrop: blur(24px);
   --glass-hover-shadow: 0 15px 50px -10px rgba(0, 243, 255, 0.15);
   
+
+
+
   /* Neon Accents */
   --accent-cyan: #00f3ff;
   --accent-cyan-glow: rgba(0, 243, 255, 0.5);
@@ -34,6 +37,9 @@
   --font-heading: 'Space Grotesk', sans-serif;
 }
 
+
+
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -52,6 +58,10 @@ body {
     radial-gradient(circle at 15% 50%, rgba(0, 102, 255, 0.15), transparent 25%),
     radial-gradient(circle at 85% 30%, rgba(157, 0, 255, 0.1), transparent 25%);
 }
+
+
+
+
 
 #root {
   width: 100%;

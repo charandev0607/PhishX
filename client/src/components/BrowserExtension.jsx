@@ -13,6 +13,8 @@ const BrowserExtension = ({ onThreatDetected, userRole }) => {
     const [error, setError] = useState('');
     const canAnalyzeWebpage = userRole === 'admin' || userRole === 'end_user' || userRole === 'ml_engineer';
 
+
+    
     const startScan = async () => {
         setError('');
         setResult(null);

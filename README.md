@@ -6,6 +6,7 @@ The project includes role-based dashboards for end users, security admins, and M
 
 ## Core Features
 
+
 - Real-time phishing analysis for URLs, emails, and webpage text
 - Browser-extension-style analysis UI in the frontend
 - Role-based authentication for `admin`, `end_user`, and `ml_engineer`
@@ -19,6 +20,7 @@ The project includes role-based dashboards for end users, security admins, and M
 
 ### Frontend
 
+
 Located in `client/`
 
 - React 19 + Vite
@@ -29,6 +31,7 @@ Located in `client/`
 - ML engineer dashboard
 
 ### Backend
+
 
 Located in `server/`
 
@@ -49,6 +52,7 @@ Located in `MLPipeline/`
   - Webpage text/signal classification
 - Local retraining scripts and stored model artifacts
 
+
 ## Monorepo Structure
 
 ```text
@@ -60,6 +64,7 @@ PhishX/
 |- package.json
 |- start-all.ps1
 ```
+
 
 ## Prerequisites
 
@@ -75,6 +80,9 @@ PhishX/
 ```bash
 npm install
 ```
+
+
+
 
 This installs the workspace dependencies for the root, `client`, and `server`.
 
@@ -116,6 +124,7 @@ Commonly used defaults already provided in `server/.env.example`:
 npm run dev
 ```
 
+
 This starts:
 
 - Frontend: `http://localhost:5173`
@@ -155,6 +164,9 @@ Notes:
 
 - `server:dev` and `server:start` enable `MONGO_MEMORY_FALLBACK=true`, so local development can run without a standalone MongoDB instance.
 - If `RESEND_API_KEY` is missing or the `resend` package is unavailable, OTP email sending falls back to a mock console flow instead of crashing the server.
+
+
+
 
 ## Main API Surface
 
@@ -235,6 +247,7 @@ Run the main automated checks with:
 npm run test
 ```
 
+
 Run the API smoke flow only with:
 
 ```bash
@@ -243,13 +256,17 @@ npm run test:api
 
 ## Tech Stack
 
-- Frontend: React, Vite, React Router, Recharts, Socket.IO Client, jsPDF
-- Backend: Node.js, Express, Mongoose, JWT, Socket.IO
-- Security: Helmet, CORS, rate limiting, HPP, XSS sanitization, Mongo sanitize
-- ML: FastAPI, scikit-learn, joblib, NumPy, pandas, tldextract
+- Frontend: React, Vite, React Router, Recharts, Socket.IO Client, jsPDF.
+- Backend: Node.js, Express, Mongoose, JWT, Socket.IO.
+- Security: Helmet, CORS, rate limiting, HPP, XSS sanitization, Mongo sanitize.
+- ML: FastAPI, scikit-learn, joblib, NumPy, pandas, tldextract.
 
 ## Current Dev Notes
 
 - Local backend startup has been hardened so missing `resend` installation does not block development.
+
+
 - The ML service can bootstrap model artifacts by running retraining scripts if required artifacts are missing.
+
+
 - The frontend app title and UI branding currently surface `Sentinel AI` in the authenticated shell, while the project repository and backend remain named `PhishX`.
