@@ -53,6 +53,9 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   
+
+
+  
   /* Subtle background pattern */
   background-image: 
     radial-gradient(circle at 15% 50%, rgba(0, 102, 255, 0.15), transparent 25%),

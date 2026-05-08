@@ -18,6 +18,8 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 
 
+
+
 const toThreatType = (incidentType) => {
   if (incidentType === 'email') return 'Email Threat';
   if (incidentType === 'webpage') return 'Webpage Threat';

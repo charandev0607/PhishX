@@ -94,6 +94,8 @@ const Auth = ({ onLogin }) => {
                     setError(json?.message || 'Password reset failed.');
                     return;
                 }
+         
+         
                 setSuccess('Password updated successfully. Please login.');
                 setMode('login');
                 setOtp('');

@@ -80,6 +80,9 @@ const BrowserExtension = ({ onThreatDetected, userRole }) => {
                 )}
             </div>
 
+
+
+
             {(scanState === 'idle' || scanState === 'complete') && (
                 <div className="scan-flow-section">
                     <div className="scan-icon-wrapper">

@@ -58,6 +58,9 @@ const ThreatDetails = ({ threat, onBack }) => {
       ]
   );
 
+
+
+
   const normalizedEvents = (displayThreat.events && displayThreat.events.length
     ? displayThreat.events
     : [
@@ -105,6 +108,8 @@ const ThreatDetails = ({ threat, onBack }) => {
       headStyles: { fillColor: [0, 102, 255] },
     });
 
+
+    
     autoTable(doc, {
       startY: (doc.lastAutoTable?.finalY || 40) + 8,
       head: [['AI Detection Reasons']],

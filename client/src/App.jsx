@@ -56,6 +56,11 @@ const AuthenticatedApp = ({ user, accessToken, activeTab, selectedThreat, onSetT
               className={`tab-btn ${activeTab === 'ml-engineer' ? 'active' : ''}`}
               onClick={() => onSetTab('ml-engineer')}
             >
+
+
+
+
+              
               <Cpu size={16} /> ML Engineer Dashboard
             </button>
           ) : null}

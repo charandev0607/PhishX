@@ -23,12 +23,12 @@ The project includes role-based dashboards for end users, security admins, and M
 
 Located in `client/`
 
-- React 19 + Vite
-- Simulated browser extension workflow
-- Auth flow with session persistence
-- Threat details view
-- Admin dashboard
-- ML engineer dashboard
+- React 19 + Vite.
+- Simulated browser extension workflow.
+- Auth flow with session persistence.
+- Threat details view.
+- Admin dashboard.
+- ML engineer dashboard.
 
 ### Backend
 
