@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { execFile } from "node:child_process";
 import { access } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -124,6 +125,26 @@ export const mlReadinessController = async (_req, res, next) => {
 
     const missing = checks.filter((item) => !item.ok).map((item) => item.path);
     const ready = missing.length === 0;
+    const modelVersions = {};
+
+    for (const relPath of REQUIRED_ARTIFACT_PATHS) {
+      const absPath = resolve(repoRoot, relPath);
+      try {
+        const latest = JSON.parse(await readFile(absPath, "utf-8"));
+        const modelName = relPath.split("/")[2];
+        modelVersions[modelName] = {
+          version: latest?.version || null,
+          updatedAt: latest?.updated_at || null,
+        };
+      } catch {
+        const modelName = relPath.split("/")[2];
+        modelVersions[modelName] = {
+          version: null,
+          updatedAt: null,
+        };
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: ready ? "ML system is ready" : "ML system is not fully ready",
@@ -132,6 +153,7 @@ export const mlReadinessController = async (_req, res, next) => {
         datasets: checks.filter((item) => item.path.includes("/datasets/")),
         artifacts: checks.filter((item) => item.path.includes("/artifacts/")),
         missing,
+        modelVersions,
       },
     });
   } catch (error) {
@@ -181,4 +203,3 @@ export const mlRetrainController = async (req, res, next) => {
     return next(error);
   }
 };
-
