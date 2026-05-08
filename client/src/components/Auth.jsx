@@ -16,6 +16,8 @@ const Auth = ({ onLogin }) => {
     const [otp, setOtp] = useState('');
     const [otpSent, setOtpSent] = useState(false);
 
+
+    
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');

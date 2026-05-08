@@ -8,6 +8,8 @@
     overflow: hidden;
 }
 
+
+
 /* Scanning effect */
 .extension-container::after {
     content: '';
