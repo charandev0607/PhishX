@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
 } from 'recharts';
-import { Database, TrendingUp, RefreshCw, BarChart2, Shield, Activity, Share2 } from 'lucide-react';
+import { Database, TrendingUp, RefreshCw, BarChart2, Activity, Share2 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import './MLEngineerDashboard.css';
 
@@ -11,34 +11,60 @@ const MLEngineerDashboard = () => {
     const [pipelineMessage, setPipelineMessage] = useState('');
     const [activeTab, setActiveTab] = useState('threat-intel');
     const [metricsRows, setMetricsRows] = useState([]);
+    const [mlReadiness, setMlReadiness] = useState(null);
+    const [blockedAttempts, setBlockedAttempts] = useState(0);
 
-    const loadMetrics = async () => {
+    const loadDashboardData = async () => {
         try {
-            const resp = await apiFetch('/api/v1/ml/metrics?days=14');
-            if (!resp.ok) {
+            const [metricsResp, readinessResp, blockedResp] = await Promise.all([
+                apiFetch('/api/v1/ml/metrics?days=14'),
+                apiFetch('/api/v1/ml/readiness'),
+                apiFetch('/api/v1/stats/blocked-attempts'),
+            ]);
+
+            if (metricsResp.ok) {
+                const json = await metricsResp.json();
+                setMetricsRows(json?.data?.rows ?? []);
+            } else {
                 setMetricsRows([]);
-                return;
             }
-            const json = await resp.json();
-            setMetricsRows(json?.data?.rows ?? []);
+
+            if (readinessResp.ok) {
+                const json = await readinessResp.json();
+                setMlReadiness(json?.data ?? null);
+            } else {
+                setMlReadiness(null);
+            }
+
+            if (blockedResp.ok) {
+                const json = await blockedResp.json();
+                setBlockedAttempts(Number(json?.data?.blocked_attempts || 0));
+            } else {
+                setBlockedAttempts(0);
+            }
         } catch {
             setMetricsRows([]);
+            setMlReadiness(null);
+            setBlockedAttempts(0);
         }
     };
 
     useEffect(() => {
-        loadMetrics();
+        loadDashboardData();
+        const intervalId = setInterval(loadDashboardData, 15000);
+        return () => clearInterval(intervalId);
     }, []);
 
     const modelPerformanceData = useMemo(() => {
-        return metricsRows.map((row, idx) => {
+        return metricsRows.map((row) => {
             const total = (row.truePositives || 0) + (row.trueNegatives || 0) + (row.falsePositives || 0) + (row.falseNegatives || 0);
             const accuracy = total > 0 ? ((row.truePositives || 0) + (row.trueNegatives || 0)) / total : 0;
-            const loss = 1 - accuracy;
+            const precisionDenominator = (row.truePositives || 0) + (row.falsePositives || 0);
+            const precision = precisionDenominator > 0 ? (row.truePositives || 0) / precisionDenominator : 0;
             return {
-                epoch: String(idx + 1),
+                day: row.date?.slice(5) || 'N/A',
                 accuracy: Number((accuracy * 100).toFixed(2)),
-                loss: Number(loss.toFixed(4)),
+                precision: Number((precision * 100).toFixed(2)),
             };
         });
     }, [metricsRows]);
@@ -48,7 +74,9 @@ const MLEngineerDashboard = () => {
             name: row.date?.slice(5) || 'N/A',
             url: row.byType?.url?.feedbackCount || 0,
             email: row.byType?.email?.feedbackCount || 0,
+            webpage: row.byType?.webpage?.feedbackCount || 0,
             falsePositives: row.falsePositives || 0,
+            falseNegatives: row.falseNegatives || 0,
         }));
     }, [metricsRows]);
 
@@ -62,7 +90,7 @@ const MLEngineerDashboard = () => {
                 setPipelineMessage(retrainJson?.message || 'Retraining failed.');
                 return;
             }
-            await loadMetrics();
+            await loadDashboardData();
             setPipelineMessage(retrainJson?.message || 'Retraining completed and metrics refreshed.');
         } finally {
             setIsUpdatingModels(false);
@@ -76,23 +104,33 @@ const MLEngineerDashboard = () => {
     const latestErrorRate = latestTotal > 0
         ? (((latest.falsePositives || 0) + (latest.falseNegatives || 0)) / latestTotal) * 100
         : null;
+    const latestFeedbackCount = metricsRows.reduce((sum, row) => sum + Number(row.feedbackCount || 0), 0);
+    const modelVersions = mlReadiness?.modelVersions || {};
+    const latestModelUpdate = Object.values(modelVersions)
+        .map((item) => item?.updatedAt)
+        .filter(Boolean)
+        .sort()
+        .at(-1);
+    const modelVersionLabel = Object.values(modelVersions)
+        .map((item) => item?.version)
+        .filter(Boolean)
+        .join(' / ');
 
     return (
         <div className="ml-dashboard-layout">
-            {/* Sidebar for ML specific navigation */}
             <aside className="ml-sidebar glass-panel">
                 <div className="brand">
                     <div className="logo-pulse ml-pulse"></div>
                     <h2>ML Ops Center</h2>
                     <span className="badge ai-badge">AI CORE</span>
                 </div>
-                
+
                 <nav className="nav-menu">
                     <button className={`nav-item ${activeTab === 'threat-intel' ? 'active' : ''}`} onClick={() => setActiveTab('threat-intel')}>
                         <Database size={20} /> Update Threat Intelligence
                     </button>
                     <button className={`nav-item ${activeTab === 'blocked-stats' ? 'active' : ''}`} onClick={() => setActiveTab('blocked-stats')}>
-                        <BarChart2 size={20} /> View Blocked Attempts Statistics
+                        <BarChart2 size={20} /> Feedback And Error Statistics
                     </button>
                     <button className={`nav-item ${activeTab === 'model-perf' ? 'active' : ''}`} onClick={() => setActiveTab('model-perf')}>
                         <Activity size={20} /> Model Performance
@@ -109,16 +147,14 @@ const MLEngineerDashboard = () => {
                 </div>
             </aside>
 
-            {/* Main View Area */}
             <main className="ml-main-content">
                 <header className="ml-topbar glass-panel-light">
-                    <h2>{activeTab === 'threat-intel' ? 'Threat Intelligence Management' : 
-                         activeTab === 'blocked-stats' ? 'Blocked Attempts Statistics' : 
+                    <h2>{activeTab === 'threat-intel' ? 'Threat Intelligence Management' :
+                         activeTab === 'blocked-stats' ? 'Feedback And Error Statistics' :
                          'Model Performance Metrics'}</h2>
                 </header>
 
                 <div className="ml-content-area">
-                    {/* View: Update Threat Intelligence */}
                     {activeTab === 'threat-intel' && (
                         <div className="threat-intel-view fade-in">
                             <div className="info-cards">
@@ -127,7 +163,7 @@ const MLEngineerDashboard = () => {
                                         <h3>New Incident Data</h3>
                                         <Database size={20} className="magenta-icon" />
                                     </div>
-                                    <div className="stat-value">{metricsRows.reduce((sum, r) => sum + (r.feedbackCount || 0), 0)}</div>
+                                    <div className="stat-value">{latestFeedbackCount}</div>
                                     <p className="description">Validated feedback records available for retraining</p>
                                 </div>
                                 <div className="stat-card glass-panel-light">
@@ -135,24 +171,39 @@ const MLEngineerDashboard = () => {
                                         <h3>Current Model Version</h3>
                                         <Share2 size={20} className="cyan-icon" />
                                     </div>
-                                    <div className="stat-value">Production</div>
-                                    <p className="description">Last metric update: {metricsRows.at(-1)?.updatedAt ? new Date(metricsRows.at(-1).updatedAt).toLocaleString() : 'N/A'}</p>
+                                    <div className="stat-value version-value">{modelVersionLabel || 'Unavailable'}</div>
+                                    <p className="description">
+                                        {mlReadiness?.ready ? 'ML system ready.' : 'ML system not fully ready.'}
+                                        {' '}
+                                        Last artifact update: {latestModelUpdate ? new Date(latestModelUpdate).toLocaleString() : 'N/A'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="info-cards">
+                                <div className="stat-card glass-panel-light">
+                                    <div className="stat-header">
+                                        <h3>Total Reported Blocks</h3>
+                                        <BarChart2 size={20} className="cyan-icon" />
+                                    </div>
+                                    <div className="stat-value">{blockedAttempts}</div>
+                                    <p className="description">User-reported suspicious links recorded by the platform</p>
                                 </div>
                             </div>
 
                             <div className="action-panel glass-panel">
                                 <h3>Update Threat Intelligence Pipeline</h3>
-                                <p>Process the recently collected incident data (reported links, detected zero-day threats) to continuously train and update the ML detection models.</p>
-                                
+                                <p>Process validated ML feedback, refresh incremental datasets, retrain all three phishing models, and update the latest production artifacts.</p>
+
                                 <div className="pipeline-steps">
-                                    <div className={`step ${isUpdatingModels ? 'processing' : ''}`}>1. Clean & Extract Features</div>
-                                    <div className={`step ${isUpdatingModels ? 'processing delay-1' : ''}`}>2. Train Model Increments</div>
-                                    <div className={`step ${isUpdatingModels ? 'processing delay-2' : ''}`}>3. Validate Accuracy</div>
-                                    <div className={`step ${isUpdatingModels ? 'processing delay-3' : ''}`}>4. Deploy Intel Update</div>
+                                    <div className={`step ${isUpdatingModels ? 'processing' : ''}`}>1. Export Feedback</div>
+                                    <div className={`step ${isUpdatingModels ? 'processing delay-1' : ''}`}>2. Retrain Models</div>
+                                    <div className={`step ${isUpdatingModels ? 'processing delay-2' : ''}`}>3. Validate Metrics</div>
+                                    <div className={`step ${isUpdatingModels ? 'processing delay-3' : ''}`}>4. Publish Artifacts</div>
                                 </div>
 
-                                <button 
-                                    className={`btn-primary large-btn ${isUpdatingModels ? 'loading' : ''}`} 
+                                <button
+                                    className={`btn-primary large-btn ${isUpdatingModels ? 'loading' : ''}`}
                                     onClick={handleRefreshMetrics}
                                     disabled={isUpdatingModels}
                                 >
@@ -167,12 +218,11 @@ const MLEngineerDashboard = () => {
                         </div>
                     )}
 
-                    {/* View: Blocked Attempts Statistics */}
                     {activeTab === 'blocked-stats' && (
                         <div className="blocked-stats-view fade-in">
                             <div className="charts-section glass-panel">
                                 <div className="section-header">
-                                    <h3>Weekly Blocked Threats Breakdown</h3>
+                                    <h3>Daily Feedback Volume And Error Counts</h3>
                                 </div>
                                 <div className="chart-container" style={{ height: '400px' }}>
                                     <ResponsiveContainer width="100%" height="100%">
@@ -183,7 +233,9 @@ const MLEngineerDashboard = () => {
                                             <RechartsTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#111118', border: '1px solid #333' }} />
                                             <Bar dataKey="url" stackId="a" fill="#00f3ff" name="URL Feedback" />
                                             <Bar dataKey="email" stackId="a" fill="#9d00ff" name="Email Feedback" />
-                                            <Bar dataKey="falsePositives" stackId="a" fill="#ff0055" name="False Positives" />
+                                            <Bar dataKey="webpage" stackId="a" fill="#6f7cff" name="Webpage Feedback" />
+                                            <Bar dataKey="falsePositives" stackId="b" fill="#ff0055" name="False Positives" />
+                                            <Bar dataKey="falseNegatives" stackId="b" fill="#ff8c00" name="False Negatives" />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -191,23 +243,21 @@ const MLEngineerDashboard = () => {
                         </div>
                     )}
 
-                    {/* View: Model Performance */}
                     {activeTab === 'model-perf' && (
                         <div className="model-perf-view fade-in">
                              <div className="charts-section glass-panel">
                                 <div className="section-header">
-                                    <h3>Model Training Validation History</h3>
+                                    <h3>Daily Accuracy And Precision History</h3>
                                 </div>
                                 <div className="chart-container" style={{ height: '350px' }}>
                                     <ResponsiveContainer width="100%" height="100%">
                                         <LineChart data={modelPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                            <XAxis dataKey="epoch" stroke="#a0a0b0" label={{ value: 'Epochs', position: 'insideBottomRight', offset: -10, fill: '#a0a0b0' }} />
-                                            <YAxis yAxisId="left" stroke="#00f3ff" label={{ value: 'Accuracy (%)', angle: -90, position: 'insideLeft', fill: '#00f3ff' }} />
-                                            <YAxis yAxisId="right" orientation="right" stroke="#ff0055" label={{ value: 'Loss', angle: 90, position: 'insideRight', fill: '#ff0055' }} />
+                                            <XAxis dataKey="day" stroke="#a0a0b0" />
+                                            <YAxis stroke="#00f3ff" domain={[0, 100]} />
                                             <RechartsTooltip contentStyle={{ backgroundColor: '#111118', border: '1px solid #333' }} />
-                                            <Line yAxisId="left" type="monotone" dataKey="accuracy" stroke="#00f3ff" strokeWidth={3} dot={{r: 4}} name="Validation Accuracy" />
-                                            <Line yAxisId="right" type="monotone" dataKey="loss" stroke="#ff0055" strokeWidth={3} dot={{r: 4}} name="Validation Loss" />
+                                            <Line type="monotone" dataKey="accuracy" stroke="#00f3ff" strokeWidth={3} dot={{r: 4}} name="Accuracy (%)" />
+                                            <Line type="monotone" dataKey="precision" stroke="#ff0055" strokeWidth={3} dot={{r: 4}} name="Precision (%)" />
                                         </LineChart>
                                     </ResponsiveContainer>
                                 </div>
