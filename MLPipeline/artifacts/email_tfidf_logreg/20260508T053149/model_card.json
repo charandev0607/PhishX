@@ -1,0 +1,20 @@
+{
+  "name": "email_tfidf_logreg",
+  "version": "20260508T053149",
+  "created_at": "2026-05-08T05:31:49.722061+00:00",
+  "framework": "scikit-learn",
+  "feature_names": [
+    "word_tfidf(1-2grams)",
+    "char_tfidf(3-5grams)"
+  ],
+  "threshold": 0.35,
+  "metrics": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "auc": 1.0,
+    "fpr": 0.0
+  },
+  "notes": "Email word+character TF-IDF logistic regression with threshold tuning"
+}

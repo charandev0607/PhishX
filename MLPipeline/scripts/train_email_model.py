@@ -4,9 +4,10 @@ from pathlib import Path
 import sys
 
 import numpy as np
+from sklearn.pipeline import FeatureUnion
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import precision_recall_fscore_support, roc_auc_score
+from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
@@ -15,6 +16,7 @@ sys.path.insert(0, str(repo_root / "MLPipeline" / "py"))
 
 from mlpipeline.io_jsonl import read_jsonl
 from mlpipeline.registry import ModelCard, save_model_bundle, utc_now_iso
+from mlpipeline.thresholds import select_threshold
 
 
 def main() -> None:
@@ -52,28 +54,59 @@ def main() -> None:
 
     clf = Pipeline(
         steps=[
-            ("tfidf", TfidfVectorizer(ngram_range=(1, 2), min_df=min_df, max_features=40000)),
+            (
+                "tfidf",
+                FeatureUnion(
+                    transformer_list=[
+                        (
+                            "word",
+                            TfidfVectorizer(
+                                ngram_range=(1, 2),
+                                min_df=min_df,
+                                max_features=30000,
+                                sublinear_tf=True,
+                            ),
+                        ),
+                        (
+                            "char",
+                            TfidfVectorizer(
+                                analyzer="char_wb",
+                                ngram_range=(3, 5),
+                                min_df=1,
+                                max_features=20000,
+                                sublinear_tf=True,
+                            ),
+                        ),
+                    ]
+                ),
+            ),
             ("lr", LogisticRegression(max_iter=2000, class_weight="balanced")),
         ]
     )
     clf.fit(Xtr, ytr)
 
     proba = clf.predict_proba(Xte)[:, 1]
-    pred = (proba >= 0.5).astype(int)
-    prec, rec, f1, _ = precision_recall_fscore_support(yte, pred, average="binary", zero_division=0)
+    selected_threshold, selected_metrics = select_threshold(yte, proba)
     auc = roc_auc_score(yte, proba)
 
-    metrics = {"precision": float(prec), "recall": float(rec), "f1": float(f1), "auc": float(auc)}
+    metrics = {
+        "accuracy": float(selected_metrics["accuracy"]),
+        "precision": float(selected_metrics["precision"]),
+        "recall": float(selected_metrics["recall"]),
+        "f1": float(selected_metrics["f1"]),
+        "auc": float(auc),
+        "fpr": float(selected_metrics["fpr"]),
+    }
     version = utc_now_iso().replace(":", "").replace("-", "").split(".")[0]
     card = ModelCard(
         name="email_tfidf_logreg",
         version=version,
         created_at=utc_now_iso(),
         framework="scikit-learn",
-        feature_names=["tfidf(1-2grams)"],
-        threshold=0.5,
+        feature_names=["word_tfidf(1-2grams)", "char_tfidf(3-5grams)"],
+        threshold=selected_threshold,
         metrics=metrics,
-        notes="Email TF-IDF + logistic regression baseline",
+        notes="Email word+character TF-IDF logistic regression with threshold tuning",
     )
 
     save_model_bundle(repo_root=repo_root, model_name="email_tfidf_logreg", version=version, model_obj=clf, card=card)

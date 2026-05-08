@@ -108,10 +108,12 @@ export const analyzeEmail = async ({ subject = "", body = "" }) => {
 
   ruleScore = Math.min(100, ruleScore);
 
+  let ml = null;
   let mlScore = 0;
   let mlUnavailable = false;
   try {
-    mlScore = await getEmailMLScore({ subject, body });
+    ml = await getEmailMLScore({ subject, body });
+    mlScore = ml.score;
   } catch {
     mlUnavailable = true;
     mlScore = 0;
@@ -126,7 +128,7 @@ export const analyzeEmail = async ({ subject = "", body = "" }) => {
   if (mlUnavailable) {
     reasons.push("ML scoring service unavailable; using email heuristics only");
   } else {
-    if (mlScore >= 70) reasons.push("ML model flagged high phishing probability");
+    if (ml?.decision === "phishing" && mlScore >= 70) reasons.push("ML model flagged high phishing probability");
     if (mlScore >= 40 && mlScore < 70) reasons.push("ML model flagged suspicious pattern");
   }
 
@@ -139,6 +141,18 @@ export const analyzeEmail = async ({ subject = "", body = "" }) => {
       heuristicFloor,
       mlScore,
       mlUnavailable,
+      ml: mlUnavailable
+        ? { available: false, fallback: "heuristics_only" }
+        : {
+            available: true,
+            fallback: "ml_plus_heuristics",
+            probability: ml?.probability ?? null,
+            threshold: ml?.threshold ?? null,
+            confidence: ml?.confidence ?? null,
+            decision: ml?.decision ?? null,
+            model: ml?.model ?? null,
+            version: ml?.version ?? null,
+          },
       linkCount: links.length,
       subjectLength: subject.length,
       bodyLength: body.length,

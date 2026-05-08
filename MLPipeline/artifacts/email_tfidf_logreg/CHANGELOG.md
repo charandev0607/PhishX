@@ -55,3 +55,13 @@
 - Metrics: {'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'auc': 1.0}
 - Notes: Email TF-IDF + logistic regression baseline
 
+## 20260508T053149
+- Created: 2026-05-08T05:31:49.722061+00:00
+- Metrics: {'accuracy': 1.0, 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'auc': 1.0, 'fpr': 0.0}
+- Notes: Email word+character TF-IDF logistic regression with threshold tuning
+
+## 20260508T053245
+- Created: 2026-05-08T05:32:45.442955+00:00
+- Metrics: {'accuracy': 1.0, 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'auc': 1.0, 'fpr': 0.0}
+- Notes: Email word+character TF-IDF logistic regression with threshold tuning
+

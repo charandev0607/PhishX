@@ -85,3 +85,13 @@
 - Metrics: {'precision': 0.9986442516268981, 'recall': 0.9821333333333333, 'f1': 0.9903199784888411, 'auc': 0.9935391968727789}
 - Notes: URL lexical/structural logistic regression baseline
 
+## 20260508T053148
+- Created: 2026-05-08T05:31:48.566506+00:00
+- Metrics: {'accuracy': 0.9904025593175153, 'precision': 0.9986442516268981, 'recall': 0.9821333333333333, 'f1': 0.9903199784888411, 'auc': 0.9935033759772565, 'fpr': 0.0013326226012793177}
+- Notes: URL lexical/structural logistic regression with threshold tuning
+
+## 20260508T053244
+- Created: 2026-05-08T05:32:44.337737+00:00
+- Metrics: {'accuracy': 0.9904025593175153, 'precision': 0.9986442516268981, 'recall': 0.9821333333333333, 'f1': 0.9903199784888411, 'auc': 0.9935033759772565, 'fpr': 0.0013326226012793177}
+- Notes: URL lexical/structural logistic regression with threshold tuning
+

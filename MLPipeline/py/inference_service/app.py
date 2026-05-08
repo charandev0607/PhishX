@@ -70,6 +70,29 @@ _cache: Dict[str, Any] = {}
 _cache_lock = threading.Lock()
 
 
+def _normalize_probability(probability: float, threshold: float) -> float:
+    p = min(max(float(probability), 0.0), 1.0)
+    t = min(max(float(threshold), 0.01), 0.99)
+    if p <= t:
+        return 0.5 * (p / t)
+    return 0.5 + 0.5 * ((p - t) / (1.0 - t))
+
+
+def _build_response(*, model_name: str, version: str, probability: float, threshold: float, **extra: Any):
+    normalized = _normalize_probability(probability, threshold)
+    confidence = min(1.0, abs(probability - threshold) / max(threshold, 1.0 - threshold))
+    return {
+        "model": model_name,
+        "version": version,
+        "score": normalized,
+        "probability": float(probability),
+        "threshold": float(threshold),
+        "decision": "phishing" if probability >= threshold else "safe",
+        "confidence": float(confidence),
+        **extra,
+    }
+
+
 def _get_or_load_model(cache_key: str, model_name: str):
     cached = _cache.get(cache_key)
     if cached is not None:
@@ -92,7 +115,14 @@ def score_url(req: UrlReq):
     vec, feats = featurize_url(req.url)
     X = np.asarray([vec], dtype=np.float32)
     p = float(model.predict_proba(X)[:, 1][0])
-    return {"model": "url_logreg", "version": version, "score": p, "threshold": float(card.get("threshold", 0.5)), "features": feats}
+    threshold = float(card.get("threshold", 0.5))
+    return _build_response(
+        model_name="url_logreg",
+        version=version,
+        probability=p,
+        threshold=threshold,
+        features=feats,
+    )
 
 
 @app.post("/score/email")
@@ -100,7 +130,13 @@ def score_email(req: EmailReq):
     version, model, card = _get_or_load_model("email_tfidf_logreg", "email_tfidf_logreg")
     text = f"{req.subject}\n{req.body}"
     p = float(model.predict_proba([text])[:, 1][0])
-    return {"model": "email_tfidf_logreg", "version": version, "score": p, "threshold": float(card.get("threshold", 0.5))}
+    threshold = float(card.get("threshold", 0.5))
+    return _build_response(
+        model_name="email_tfidf_logreg",
+        version=version,
+        probability=p,
+        threshold=threshold,
+    )
 
 
 @app.post("/score/webpage")
@@ -109,7 +145,14 @@ def score_webpage(req: WebReq):
     vec, feats = featurize_text(req.text)
     X = np.asarray([vec], dtype=np.float32)
     p = float(model.predict_proba(X)[:, 1][0])
-    return {"model": "webpage_signals_rf", "version": version, "score": p, "threshold": float(card.get("threshold", 0.5)), "signals": feats}
+    threshold = float(card.get("threshold", 0.5))
+    return _build_response(
+        model_name="webpage_signals_rf",
+        version=version,
+        probability=p,
+        threshold=threshold,
+        signals=feats,
+    )
 
 
 @app.post("/retrain")
@@ -126,4 +169,3 @@ def retrain_models():
     with _cache_lock:
         _cache.clear()
     return {"ok": True, "message": "Retraining completed successfully"}
-

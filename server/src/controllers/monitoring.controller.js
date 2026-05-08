@@ -14,9 +14,9 @@ const getDateRangeQuery = (startDate, endDate) => {
 
 export const getDashboardController = async (req, res, next) => {
   try {
-    const [liveThreatCounts, recentIncidents, scoreDistribution] = await Promise.all([
+    const [liveThreatCounts, recentIncidents, scoreDistribution, trend, totalThreats, blockedCount] = await Promise.all([
       Incident.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
-      Incident.find({}).sort({ createdAt: -1 }).limit(10).lean(),
+      Incident.find({}).sort({ createdAt: -1 }).limit(50).lean(),
       Incident.aggregate([
         {
           $bucket: {
@@ -27,15 +27,69 @@ export const getDashboardController = async (req, res, next) => {
           },
         },
       ]),
+      Incident.aggregate([
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+              day: { $dayOfMonth: "$createdAt" },
+              hour: { $hour: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $sort: {
+            "_id.year": 1,
+            "_id.month": 1,
+            "_id.day": 1,
+            "_id.hour": 1,
+          },
+        },
+        { $limit: 24 },
+      ]),
+      Incident.countDocuments({}),
+      Incident.countDocuments({ status: "phishing" }),
     ]);
+
+    const statusCounts = Object.fromEntries(liveThreatCounts.map((item) => [item._id, item.count]));
+    const scoreBuckets = scoreDistribution.reduce(
+      (acc, bucket) => {
+        if (bucket._id === 0) acc.low = bucket.count;
+        if (bucket._id === 40) acc.medium = bucket.count;
+        if (bucket._id === 70) acc.high = bucket.count;
+        return acc;
+      },
+      { low: 0, medium: 0, high: 0 }
+    );
+    const trendPoints = trend.map((row) => ({
+      label: `${String(row._id.hour).padStart(2, "0")}:00`,
+      threats: row.count,
+      timestamp: row._id,
+    }));
 
     return res.status(200).json({
       success: true,
       message: "Dashboard data fetched",
       data: {
+        summary: {
+          totalThreats,
+          phishingBlocked: blockedCount,
+          safe: statusCounts.safe || 0,
+          suspicious: statusCounts.suspicious || 0,
+          phishing: statusCounts.phishing || 0,
+        },
         liveThreatCounts,
         recentIncidents,
         scoreDistribution,
+        trend: trendPoints,
+        riskDistribution: [
+          { name: "Low", value: scoreBuckets.low, color: "#00ff88" },
+          { name: "Medium", value: scoreBuckets.medium, color: "#0066ff" },
+          { name: "High", value: scoreBuckets.high, color: "#ffb800" },
+          { name: "Critical", value: statusCounts.phishing || 0, color: "#ff0055" },
+        ],
       },
     });
   } catch (error) {

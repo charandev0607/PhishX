@@ -14,10 +14,12 @@ export const analyzeUrl = async ({ url, pageHtml = "", scriptContent = "" }) => 
     throw err;
   }
   const ruleResult = calculateRuleBasedScore(features);
+  let ml = null;
   let mlScore = 0;
   let mlUnavailable = false;
   try {
-    mlScore = await getUrlMLScore({ url });
+    ml = await getUrlMLScore({ url });
+    mlScore = ml.score;
   } catch {
     mlUnavailable = true;
     mlScore = 0;
@@ -41,8 +43,8 @@ export const analyzeUrl = async ({ url, pageHtml = "", scriptContent = "" }) => 
 
   const reasons = [...ruleResult.reasons];
   reasons.push(...credentialSignals.reasons);
-  if (mlScore >= 70) reasons.push("ML model flagged high phishing probability");
-  if (mlScore >= 40 && mlScore < 70) reasons.push("ML model flagged suspicious pattern");
+  if (!mlUnavailable && ml?.decision === "phishing" && mlScore >= 70) reasons.push("ML model flagged high phishing probability");
+  if (!mlUnavailable && mlScore >= 40 && mlScore < 70) reasons.push("ML model flagged suspicious pattern");
   if (!sslResult.valid) reasons.push(...sslResult.reasons);
 
   return {
@@ -61,6 +63,12 @@ export const analyzeUrl = async ({ url, pageHtml = "", scriptContent = "" }) => 
       ml: {
         available: !mlUnavailable,
         fallback: mlUnavailable ? "heuristics_only" : "ml_plus_heuristics",
+        probability: ml?.probability ?? null,
+        threshold: ml?.threshold ?? null,
+        confidence: ml?.confidence ?? null,
+        decision: ml?.decision ?? null,
+        model: ml?.model ?? null,
+        version: ml?.version ?? null,
       },
     },
   };
