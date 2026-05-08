@@ -1,138 +1,255 @@
-# PhishX: Real-Time AI/ML-Based Phishing Detection and Prevention System
+# PhishX
 
-PhishX is a comprehensive security tool designed to detect and block phishing attempts in real-time. Utilizing advanced Machine Learning models, it analyzes URLs, detects suspicious patterns, and provides actionable intelligence across multiple user roles.
+PhishX is a full-stack phishing detection and prevention platform built as a monorepo. It combines a React frontend, an Express backend, and a Python ML inference service to analyze URLs, emails, and webpage content in near real time.
 
----
+The project includes role-based dashboards for end users, security admins, and ML engineers, along with incident monitoring, policy management, reporting, retraining hooks, and health telemetry.
 
-## 🎯 Key Features (Based on System UML)
-- **Browser Extension Integration**: Scans URLs and emails proactively for threats.
-- **AI/ML Model Analysis**: Breaks down threats using visual similarity, lexical heuristics, and domain analysis.
-- **Incident Reporting & Data Storage**: Comprehensive tracking of blocked attempts and threat vectors.
-- **Admin Dashboard**: View real-time threat feeds, generate incident reports, and monitor active threats.
-- **ML Engineer Dashboard**: Manage and update Threat Intelligence, evaluate model performance metrics, and review blocked attempt statistics.
+## Core Features
 
----
+- Real-time phishing analysis for URLs, emails, and webpage text
+- Browser-extension-style analysis UI in the frontend
+- Role-based authentication for `admin`, `end_user`, and `ml_engineer`
+- Admin dashboard for threat visibility, policy control, and reporting
+- ML engineer dashboard for model readiness, metrics, feedback, and retraining flows
+- Incident tracking, blocked-attempt statistics, and suspicious link reporting
+- Socket-driven health updates and polling-based event feeds
+- Secure backend defaults with rate limiting, CORS, Helmet, HPP, XSS sanitization, and Mongo sanitization
 
-## 🏗️ Project Architecture
+## Architecture
 
-The application is organized as a monorepo with separate frontend and backend apps:
+### Frontend
 
-### 🖥️ Frontend (React + Vite)
-Located in the `/client` directory, it handles the interactive UI.
-- Displays the **Browser Extension simulation** workflow.
-- Features the **Admin Dashboard** for security oversight.
-- Features the **ML Engineer Dashboard** for managing AI model training states.
+Located in `client/`
 
-### ⚙️ Backend (Node.js + Express)
-Located in the `/server` directory, it is an Express API for threat ingestion and analytics endpoints.
-- `src/models/`: MongoDB models and schema-driven entities (users, incidents, audit logs, sessions).
-- `src/routes/`: Versioned API routes.
-- `src/controllers/`: Request handlers for auth, analysis, incidents.
-- `src/services/`: Detection logic, scoring, retention, session and realtime support.
-- `src/utils/`: Reusable helpers (feature extraction, domain similarity, SSL checks, logging).
-- `src/config/`: Database configuration.
+- React 19 + Vite
+- Simulated browser extension workflow
+- Auth flow with session persistence
+- Threat details view
+- Admin dashboard
+- ML engineer dashboard
 
----
+### Backend
 
-## 🚀 Getting Started
+Located in `server/`
 
-### Prerequisites
-- Node.js (v20.19+)
+- Node.js + Express
+- MongoDB with optional in-memory fallback for local development
+- JWT auth with refresh-token flow
+- REST API for auth, analysis, incidents, monitoring, admin, ML, and security
+- Socket.IO support for live health updates
 
-### Install Monorepo Dependencies
+### ML Service
+
+Located in `MLPipeline/`
+
+- FastAPI inference service
+- Models for:
+  - URL classification
+  - Email phishing classification
+  - Webpage text/signal classification
+- Local retraining scripts and stored model artifacts
+
+## Monorepo Structure
+
+```text
+PhishX/
+|- client/        # React frontend
+|- server/        # Express API
+|- MLPipeline/    # Python ML pipeline and inference service
+|- README.md
+|- package.json
+|- start-all.ps1
+```
+
+## Prerequisites
+
+- Node.js 20.19+ or newer
+- Python 3.10+ or newer
+- npm
+- MongoDB only if you do not want to use the local memory fallback
+
+## Installation
+
+### 1. Install JavaScript dependencies
+
 ```bash
 npm install
 ```
 
-### Running the Frontend UI
+This installs the workspace dependencies for the root, `client`, and `server`.
+
+### 2. Install Python dependencies
+
+```bash
+pip install -r MLPipeline/requirements.txt
+```
+
+## Environment Setup
+
+Create the backend environment file:
+
+```bash
+copy server\.env.example server\.env
+```
+
+Minimum required values in `server/.env`:
+
+```env
+JWT_ACCESS_SECRET=replace-with-strong-access-secret
+JWT_REFRESH_SECRET=replace-with-strong-refresh-secret
+```
+
+Commonly used defaults already provided in `server/.env.example`:
+
+- `PORT=5000`
+- `CLIENT_ORIGIN=http://localhost:5173`
+- `ML_SERVICE_URL=http://127.0.0.1:8010`
+- `MONGO_URI=mongodb://127.0.0.1:27017/phishx`
+- `ADMIN_EMAIL=admin@phishx.local`
+- `ADMIN_PASSWORD=ChangeMeStrong123!`
+
+## Running the Project
+
+### Start all services together
+
 ```bash
 npm run dev
 ```
 
-Other root-level scripts:
+This starts:
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:5000`
+- ML service: `http://127.0.0.1:8010`
+
+### Alternative Windows launcher
+
+```powershell
+./start-all.ps1
+```
+
+### Start services individually
+
 ```bash
+npm run client:dev
+npm run server:dev
+npm run ml:dev
+```
+
+## Available Scripts
+
+Root workspace scripts:
+
+```bash
+npm run dev
 npm run build
 npm run lint
 npm run preview
+npm run seed
+npm run smoke
+npm run test
+npm run test:api
 ```
 
-### Backend Setup
-Create env file before starting server:
+Notes:
+
+- `server:dev` and `server:start` enable `MONGO_MEMORY_FALLBACK=true`, so local development can run without a standalone MongoDB instance.
+- If `RESEND_API_KEY` is missing or the `resend` package is unavailable, OTP email sending falls back to a mock console flow instead of crashing the server.
+
+## Main API Surface
+
+Base URL: `http://localhost:5000/api/v1`
+
+### Authentication
+
+- `POST /auth/signup`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `POST /auth/forgot-password`
+- `POST /auth/reset-password`
+- `POST /auth/forgot-password-otp`
+- `POST /auth/verify-otp`
+- `POST /auth/reset-password-otp`
+
+### Analysis
+
+- `POST /url-analyze`
+- `POST /email-analyze`
+- `POST /webpage-analyze`
+- `GET /events/poll`
+- `GET /system/health`
+
+### Incidents and Monitoring
+
+- `GET /incidents`
+- `GET /dashboard`
+- `GET /threat-feed`
+- `POST /report-link`
+- `GET /stats/blocked-attempts`
+- `POST /reports/generate`
+
+### Admin
+
+- `GET /admin/users`
+- `PATCH /admin/users/:userId/role`
+- `GET /admin/policies`
+- `PUT /admin/policies`
+
+### ML Operations
+
+- `POST /ml/feedback`
+- `GET /ml/metrics`
+- `GET /ml/readiness`
+- `POST /ml/retrain`
+
+### Security
+
+- `GET /security/csrf-token`
+
+## ML Service Endpoints
+
+Base URL: `http://127.0.0.1:8010`
+
+- `GET /health`
+- `POST /score/url`
+- `POST /score/email`
+- `POST /score/webpage`
+- `POST /retrain`
+
+## Testing
+
+The repository includes a documented 70-test-case coverage set across 14 modules.
+
+Relevant files:
+
+- [MASTER_TEST_CASES_70.md](C:/Users/welcome/Desktop/PhisX/PhishX/MASTER_TEST_CASES_70.md)
+- [ACTUAL_API_TEST_OUTPUTS.md](C:/Users/welcome/Desktop/PhisX/PhishX/ACTUAL_API_TEST_OUTPUTS.md)
+- [POSTMAN_TC1_TO_TC7.md](C:/Users/welcome/Desktop/PhisX/PhishX/POSTMAN_TC1_TO_TC7.md)
+- [POSTMAN_TC8_TO_TC14.md](C:/Users/welcome/Desktop/PhisX/PhishX/POSTMAN_TC8_TO_TC14.md)
+- [TEST_CASE_COVERAGE.md](C:/Users/welcome/Desktop/PhisX/PhishX/TEST_CASE_COVERAGE.md)
+
+Run the main automated checks with:
+
 ```bash
-cp server/.env.example server/.env
+npm run test
 ```
 
-Run the Express backend:
+Run the API smoke flow only with:
+
 ```bash
-npm run server:dev
+npm run test:api
 ```
 
-Useful API endpoints:
-```bash
-POST /api/v1/auth/login
-POST /api/v1/auth/refresh
-POST /api/v1/auth/logout
-POST /api/v1/url-analyze
-POST /api/v1/email-analyze
-GET /api/v1/incidents
-GET /api/v1/events/poll
-GET /api/v1/system/health
-GET /api/v1/security/csrf-token
-```
+## Tech Stack
 
----
+- Frontend: React, Vite, React Router, Recharts, Socket.IO Client, jsPDF
+- Backend: Node.js, Express, Mongoose, JWT, Socket.IO
+- Security: Helmet, CORS, rate limiting, HPP, XSS sanitization, Mongo sanitize
+- ML: FastAPI, scikit-learn, joblib, NumPy, pandas, tldextract
 
-## 🛡️ Target Audience
-- **End Users**: Protected automatically via the Browser Extension.
-- **Security Admins**: Monitor network safety and generate reports.
-- **ML Engineers**: Iteratively improve the detection models and threat repositories.
+## Current Dev Notes
 
----
-
-## ✅ Test Case Coverage (100% Complete)
-
-All 70 test cases across 14 modules are fully implemented and passing:
-
-| Module | Test Cases | Status |
-|--------|-------------|--------|
-| User Registration | 7 | ✅ Complete |
-| User Login | 7 | ✅ Complete |
-| URL Analysis | 8 | ✅ Complete |
-| Email Analysis | 6 | ✅ Complete |
-| Incident Management | 6 | ✅ Complete |
-| Admin User Management | 6 | ✅ Complete |
-| Admin Policy Management | 6 | ✅ Complete |
-| ML Feedback & Metrics | 6 | ✅ Complete |
-| System Health & Real-Time Events | 5 | ✅ Complete |
-| Security & Rate Limiting | 6 | ✅ Complete |
-| Real-Time Dashboard | 2 | ✅ Complete |
-| Monitor Threat Feed | 2 | ✅ Complete |
-| Report Suspicious Link | 2 | ✅ Complete |
-| Generate Reports | 1 | ✅ Complete |
-
-- Master test suite: `MASTER_TEST_CASES_70.md`
-- Postman test collections: `POSTMAN_TC1_TO_TC7.md`, `POSTMAN_TC8_TO_TC14.md`
-- Coverage details: `TEST_CASE_COVERAGE.md`
-
-## 🚀 Quick Start
-
-1. **Prerequisites**: Node.js v20.19+, Python 3.10+, MongoDB, Redis (optional)
-2. **Install dependencies**:
-   ```powershell
-   npm install
-   cd server; npm install; cd ..
-   cd client; npm install; cd ..
-   pip install fastapi uvicorn joblib scikit-learn numpy pandas tldextract
-   ```
-3. **Set up environment**:
-   ```powershell
-   copy .env.example server/.env
-   # Edit server/.env with your JWT secrets and MongoDB URI
-   ```
-4. **Start all services**:
-   ```powershell
-   ./start-all.ps1
-   ```
-   - Backend: http://localhost:5000
-   - Frontend: http://localhost:5173
-   - ML Service: http://localhost:8010
+- Local backend startup has been hardened so missing `resend` installation does not block development.
+- The ML service can bootstrap model artifacts by running retraining scripts if required artifacts are missing.
+- The frontend app title and UI branding currently surface `Sentinel AI` in the authenticated shell, while the project repository and backend remain named `PhishX`.

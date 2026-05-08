@@ -7,7 +7,7 @@
     "server"
   ],
   "scripts": {
-    "dev": "concurrently -n server,client -c cyan,magenta \"npm run server:dev\" \"npm run client:dev\"",
+    "dev": "concurrently -n server,client,ml -c cyan,magenta,blue \"npm run server:dev\" \"npm run client:dev\" \"npm run ml:dev\"",
     "build": "npm run build -w client",
     "lint": "npm run lint -w client",
     "preview": "npm run preview -w client",
@@ -19,8 +19,9 @@
     "client:build": "npm run build -w client",
     "client:lint": "npm run lint -w client",
     "client:preview": "npm run preview -w client",
-    "server:dev": "npm run dev -w server",
-    "server:start": "npm run start -w server"
+    "server:dev": "cross-env MONGO_MEMORY_FALLBACK=true npm run dev -w server",
+    "server:start": "cross-env MONGO_MEMORY_FALLBACK=true npm run start -w server",
+    "ml:dev": "python -m uvicorn inference_service.app:app --app-dir MLPipeline/py --host 127.0.0.1 --port 8010"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

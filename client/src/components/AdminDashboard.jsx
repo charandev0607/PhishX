@@ -34,6 +34,16 @@ const toStatusLabel = (status) => {
   return 'Allowed';
 };
 
+const normalizeIncidentRecord = (incident) => {
+  if (!incident) return null;
+  const incidentId = incident._id || incident.id;
+  if (!incidentId) return null;
+  return {
+    ...incident,
+    _id: incidentId,
+  };
+};
+
 const AdminDashboard = ({ onSelectThreat, accessToken }) => {
   const [dashboardData, setDashboardData] = useState(null);
   const [incidents, setIncidents] = useState([]);
@@ -45,54 +55,96 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
   const [reportBusy, setReportBusy] = useState(false);
   const [reportError, setReportError] = useState('');
 
+  const mergeIncomingIncident = (incident) => {
+    const normalized = normalizeIncidentRecord(incident);
+    if (!normalized) return;
+
+    if (normalized.status === 'phishing') {
+      setThreatFeed((prev) => {
+        const filtered = prev.filter((item) => String(item._id) !== String(normalized._id));
+        return [normalized, ...filtered].slice(0, 50);
+      });
+    }
+
+    setIncidents((prev) => {
+      const filtered = prev.filter((item) => String(item._id) !== String(normalized._id));
+      return [normalized, ...filtered].slice(0, 500);
+    });
+
+    setDashboardData((prev) => {
+      if (!prev) return prev;
+
+      const nextRecent = [normalized, ...(prev.recentIncidents || []).filter((item) => String(item._id) !== String(normalized._id))].slice(0, 50);
+      const nextSummary = {
+        ...(prev.summary || {}),
+        totalThreats: Number(prev.summary?.totalThreats || 0) + 1,
+        phishingBlocked: Number(prev.summary?.phishingBlocked || 0) + (normalized.status === 'phishing' ? 1 : 0),
+        safe: Number(prev.summary?.safe || 0) + (normalized.status === 'safe' ? 1 : 0),
+        suspicious: Number(prev.summary?.suspicious || 0) + (normalized.status === 'suspicious' ? 1 : 0),
+        phishing: Number(prev.summary?.phishing || 0) + (normalized.status === 'phishing' ? 1 : 0),
+      };
+
+      return {
+        ...prev,
+        recentIncidents: nextRecent,
+        summary: nextSummary,
+      };
+    });
+  };
+
   useEffect(() => {
     const loadData = async () => {
-      try {
-        const [dashboardResp, incidentsResp, feedResp, healthResp, blockedResp, mlResp] = await Promise.all([
-          apiFetch('/api/v1/dashboard'),
-          apiFetch('/api/v1/incidents?limit=500'),
-          apiFetch('/api/v1/threat-feed'),
-          apiFetch('/api/v1/system/health'),
-          apiFetch('/api/v1/stats/blocked-attempts'),
-          apiFetch('/api/v1/ml/metrics?days=14'),
-        ]);
+      const requests = await Promise.allSettled([
+        apiFetch('/api/v1/dashboard'),
+        apiFetch('/api/v1/incidents?limit=500'),
+        apiFetch('/api/v1/threat-feed'),
+        apiFetch('/api/v1/system/health'),
+        apiFetch('/api/v1/stats/blocked-attempts'),
+        apiFetch('/api/v1/ml/metrics?days=14'),
+      ]);
 
-        if (dashboardResp.ok) {
-          const json = await dashboardResp.json();
-          setDashboardData(json?.data ?? null);
+      const parseJsonIfOk = async (result) => {
+        if (result.status !== 'fulfilled') return null;
+        const response = result.value;
+        if (!response?.ok) return null;
+        try {
+          return await response.json();
+        } catch {
+          return null;
         }
+      };
 
-        if (incidentsResp.ok) {
-          const json = await incidentsResp.json();
-          setIncidents(json?.data?.items ?? []);
-        }
+      const [
+        dashboardJson,
+        incidentsJson,
+        feedJson,
+        healthJson,
+        blockedJson,
+        mlJson,
+      ] = await Promise.all(requests.map(parseJsonIfOk));
 
-        if (feedResp.ok) {
-          const json = await feedResp.json();
-          setThreatFeed(json?.data?.items ?? []);
-        }
+      if (dashboardJson?.data) {
+        setDashboardData(dashboardJson.data);
+      }
 
-        if (healthResp.ok) {
-          const json = await healthResp.json();
-          setSystemHealth(json?.data ?? null);
-        }
+      if (Array.isArray(incidentsJson?.data?.items)) {
+        setIncidents(incidentsJson.data.items.map(normalizeIncidentRecord).filter(Boolean));
+      }
 
-        if (blockedResp.ok) {
-          const json = await blockedResp.json();
-          setBlockedAttempts(Number(json?.data?.blocked_attempts || 0));
-        }
+      if (Array.isArray(feedJson?.data?.items)) {
+        setThreatFeed(feedJson.data.items.map(normalizeIncidentRecord).filter(Boolean));
+      }
 
-        if (mlResp.ok) {
-          const json = await mlResp.json();
-          setMlMetrics(json?.data?.rows ?? []);
-        }
-      } catch {
-        setDashboardData(null);
-        setIncidents([]);
-        setThreatFeed([]);
-        setSystemHealth(null);
-        setBlockedAttempts(0);
-        setMlMetrics([]);
+      if (healthJson?.data) {
+        setSystemHealth((prev) => ({ ...(prev || {}), ...healthJson.data, status: 'online' }));
+      }
+
+      if (blockedJson?.data) {
+        setBlockedAttempts(Number(blockedJson.data.blocked_attempts || 0));
+      }
+
+      if (Array.isArray(mlJson?.data?.rows)) {
+        setMlMetrics(mlJson.data.rows);
       }
     };
 
@@ -104,6 +156,55 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
   useEffect(() => {
     if (!accessToken) return undefined;
 
+    let cancelled = false;
+    let latestSeenAt = null;
+
+    const captureLatestTimestamp = () => {
+      const timestamps = [...incidents, ...threatFeed]
+        .map((item) => item?.createdAt)
+        .filter(Boolean)
+        .sort();
+      latestSeenAt = timestamps.at(-1) || latestSeenAt;
+    };
+
+    captureLatestTimestamp();
+
+    const pollEvents = async () => {
+      try {
+        const query = latestSeenAt ? `?since=${encodeURIComponent(latestSeenAt)}` : '';
+        const resp = await apiFetch(`/api/v1/events/poll${query}`);
+        if (!resp.ok || cancelled) return;
+        const json = await resp.json();
+        const events = json?.data?.incidents || [];
+        events.forEach((event) => {
+          mergeIncomingIncident(event);
+        });
+        const newestEvent = events
+          .map((event) => event?.createdAt)
+          .filter(Boolean)
+          .sort()
+          .at(-1);
+        if (newestEvent) {
+          latestSeenAt = newestEvent;
+        }
+        if (json?.data?.health) {
+          setSystemHealth((prev) => ({ ...(prev || {}), ...json.data.health, status: 'online' }));
+        }
+      } catch {
+        // Keep polling quiet and rely on the next interval.
+      }
+    };
+
+    const intervalId = setInterval(pollEvents, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [accessToken, incidents, threatFeed]);
+
+  useEffect(() => {
+    if (!accessToken) return undefined;
+
     const socket = io('/', {
       path: '/socket.io',
       transports: ['websocket', 'polling'],
@@ -111,51 +212,17 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
     });
 
     socket.on('incident:new', (incident) => {
-      const incidentId = incident?._id || incident?.id;
-      if (!incidentId) return;
-
-      if (incident.status === 'phishing') {
-        setThreatFeed((prev) => {
-          const normalized = { ...incident, _id: incidentId };
-          const filtered = prev.filter((item) => String(item._id) !== String(incidentId));
-          return [normalized, ...filtered].slice(0, 50);
-        });
-      }
-
-      setIncidents((prev) => {
-        const normalized = { ...incident, _id: incidentId };
-        const filtered = prev.filter((item) => String(item._id) !== String(incidentId));
-        return [normalized, ...filtered].slice(0, 500);
-      });
-
-      setDashboardData((prev) => {
-        if (!prev) return prev;
-
-        const nextRecent = [{ ...incident, _id: incidentId }, ...(prev.recentIncidents || []).filter((item) => String(item._id) !== String(incidentId))].slice(0, 50);
-        const nextSummary = {
-          ...(prev.summary || {}),
-          totalThreats: Number(prev.summary?.totalThreats || 0) + 1,
-          phishingBlocked:
-            Number(prev.summary?.phishingBlocked || 0) + (incident.status === 'phishing' ? 1 : 0),
-          safe: Number(prev.summary?.safe || 0) + (incident.status === 'safe' ? 1 : 0),
-          suspicious: Number(prev.summary?.suspicious || 0) + (incident.status === 'suspicious' ? 1 : 0),
-          phishing: Number(prev.summary?.phishing || 0) + (incident.status === 'phishing' ? 1 : 0),
-        };
-
-        return {
-          ...prev,
-          recentIncidents: nextRecent,
-          summary: nextSummary,
-        };
-      });
+      mergeIncomingIncident(incident);
     });
 
     socket.on('system:health', (health) => {
-      if (health) setSystemHealth(health);
+      if (health) {
+        setSystemHealth((prev) => ({ ...(prev || {}), ...health, status: 'online' }));
+      }
     });
 
     socket.on('connect_error', () => {
-      socket.disconnect();
+      // Let socket.io keep retrying instead of forcing a disconnect.
     });
 
     return () => {
@@ -284,8 +351,8 @@ const AdminDashboard = ({ onSelectThreat, accessToken }) => {
     return Math.round((totals.correct / totals.total) * 100);
   }, [mlMetrics]);
 
-  const totalThreats = Number(dashboardData?.summary?.totalThreats ?? allIncidents.length ?? 0);
-  const phishingBlocked = Number(dashboardData?.summary?.phishingBlocked ?? mappedThreatFeed.filter((t) => t.status === 'Blocked').length);
+  const totalThreats = allIncidents.length;
+  const phishingBlocked = allIncidents.filter((incident) => incident.status === 'phishing').length || blockedAttempts;
   const healthOptimal = Number(systemHealth?.responseTime ?? 0) < 1000;
 
   return (
