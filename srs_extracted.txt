@@ -1,0 +1,914 @@
+1  
+  
+   
+ 
+ 
+1  
+  
+  
+Software Requirements Specification  
+for  
+Real-Time AI/ML-Based Phishing Detection and Prevention 
+System  
+Version 1.0  
+February 2, 2026  
+  
+
+2  
+  
+ 
+ 
+  
+Table of Contents  
+Software Requirements Specification ..........................................................................................1 
+Real-Time AI/ML-Based Phishing Detection and Prevention System .............................................1  
+ 1. Introduction  
+1.1 Document Purpose  
+1.2 Product Scope  
+1.3 Intended Audience and Document Overview  
+1.4 Definitions, Acronyms, and Abbreviations  
+1.5 Document Conventions  
+1.6 References and Acknowledgments 
+2. Overall Description  
+2.1 Problem Statement  
+2.2 Product Perspective  
+2.3 Product Functionality  
+2.4 User Classes and Characteristics  
+2.5 Operating Environment  
+2.6 Design and Implementation Constraints  
+2.7 Assumptions and Dependencies 
+3. Specific Requirements  
+3.1 External Interface Requirements  
+• User Interface Requirements 
+• Hardware Interface Requirements 
+• Software Interface Requirements  
+3.2 Functional Requirements  
+3.3 Use Case Model 
+4. Other Non-Functional Requirements  
+4.1 Performance Requirements  
+4.2 Safety and Security Requirements  
+4.3 Software Quality Attributes 
+ 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+3  
+  
+ 
+ 
+1. Introduction 
+1.1 Document Purpose 
+The Software Requirements Specification (SRS) is providing fully explicit and complete 
+specification of a modularized AI/ML based multi-layered system for Phishing Detection and 
+Prevention, which defines explicitly the:  
+• Functional requirements 
+• Non-functional requirements 
+• boundaries and scope of the system 
+• External interfaces  
+• constraints on the operation of the system 
+ 
+This is the authoritative reference document on the requirements of the system for all 
+the stakeholders involved in the design, implementation, operation and maintenance of the 
+system. It also forms the contractual and planning basis for estimating cost and resources, 
+identifying risks, planning acceptance tests and tracing requirements. 
+ 
+1.2 Product Scope 
+The Real-Time AI/ML Based Phishing Detection and Prevention System is an intelligent 
+security solution system capable of identifying, categorizing, and stopping phishing threats live: 
+ 
+It offers security for all of the following: 
+• email communications 
+• URLs & clickable links 
+• Web sessions 
+• suspect password collection web pages 
+ 
+It integrates machine learning, natural language processing (NLP), behavioural analytics, and 
+protection at the browser level for proactive counter-measures. 
+The platform runs with three different integrated elements backed by a protected backend 
+infrastructure: 
+• Browsers Extension - Online scan of URLs and web pages along with instantaneous alert 
+systems 
+• AI/ML threat analysis engine (backend) - Categorization of URLs, email content analysis, 
+pattern recognition, and processing of threat scores 
+• Administration dashboard - aggregated monitoring, analytics, forensic reporting, and 
+threat intelligence platform 
+ 
+ 
+
+4  
+  
+ 
+ 
+The system offers: 
+• Ongoing situational awareness 
+• Instant threat ratings 
+• Live phishing notification 
+• Automated malicious content blockade 
+• Complete employee visibility into phishing patterns 
+ 
+The system is designed to identify and process: 
+• 0-day phishing initiations 
+• AI-created phishing emails 
+• Words that seem similar to an organization 
+• Form-based credentials collection 
+• Messages containing timeliness that seem suspicious 
+ 
+Features outside the scope (current edition): 
+ 
+The following capabilities are not a part of this system version: 
+• Antivirus malware file scanning 
+• Firewall regulation on local networks 
+• Local device endpoint monitoring 
+• Mobile app edition (initial desktop browser deliverable) 
+• Dark web monitoring 
+ 
+1.3 Intended Audience and Document Overview 
+This SRS is intended to meet the needs of a wide range of users: 
+ 
+1.3.1 Developers & ML Engineers: 
+Functional requirements, APIs and ML incorporate (Section 3-4) 
+ 
+1.3.2 System Architects: 
+System architecture, interfaces and deployment restrictions (Section 2) 
+ 
+1.3.3 QA & Security Testers: 
+Validation of detection precision, performance and reliability 
+ 
+
+5  
+  
+ 
+ 
+1.3.4 Project Managers & Security Teams: 
+• Project scope and goals, operational outputs 
+ 
+To make it easier to reader the document layout is from general to specific: 
+• Section 1 explains the introduction and background  
+• Section 2 describes the whole system  
+• Section 3 explains the functional specification 
+• Section 4 describes the non-functional specification. 
+ 
+1.4 Definitions, Acronyms, and Abbreviations 
+The definitions used in this document are as follows: 
+• AI. Artificial Intelligence: Program that automates tasks of human brains such as 
+recognizing patterns or tackling decision problems. 
+• ML. Machine Learning: One of AI's particular areas-The process remains the same, 
+incrementing it with more useful knowledge; it no longer necessitated to program it 
+element by element. 
+• NLP . Natural Language Processing: A sub-part of AI used for recognizing language in the 
+form of text in order to detect phishing language. 
+• API. Application Programming Interface: A set of protocols for enabling communication 
+between the browser extension, backend engine, and user dashboard. 
+• Phishing: An attack technique where deception is used to extract sensitive information 
+from the user. The information is usually acquired through messages or webpages. 
+• Zero Day: A previously un-defended against phishing attack that evades all rule set 
+comparison detection methods. 
+• Threat Score: A number which expresses the likelihood that a URL/email/webpage is 
+malicious. 
+• Domain Similarity Detection: Technique for detecting similar but 'spoofed' domain 
+names paypa1.com/paipai.com etc. 
+• Credential stealing form: Webpage form used to obtain user id, password, credit card 
+number etc. 
+• SSL (Secure Sockets Layer): Conversation exchanged between components of the system 
+by SSL encryption. 
+• JSON (JavaScript Object Notation): Lightweight data format, used in API communication. 
+• WebSocket: Protocol for communicating system information in real-time channel both 
+ways (server-space to client-space and vice-versa). 
+• Latency: The time difference between URL/email submission and threat classification 
+output. 
+• Near Real-Time: Process identified in less than 1-3 seconds. 
+
+6  
+  
+ 
+ 
+1.5 Document Conventions 
+This document adheres to established standards for IEEE SRS documentation, including: 
+All functional requirements are expressed as: 
+"The system shall…" 
+Each requirement has an identifier: 
+• FR-N (Functional Requirement) 
+• NFR-N (Non-Functional Requirement) 
+Definitions: 
+• Puts technical definitions (first occurrence) in italics 
+• Highlights main ideas (useful concepts) in bold 
+• Acronyms are spelled out initially 
+• Terminology is defined (figure of speech, etc.) 
+• Specifies metrics (milliseconds, %, etc.) 
+• Provides numbering scheme (navigation, traceability) 
+The use of these formats enables: 
+• Requirement traceability 
+• Clear understanding of requirements 
+• Readiness for validation and testing 
+ 
+1.6 References and Acknowledgments 
+This SRS is designed following industry best practices such as: 
+• IEEE 830-1998 Software Requirements Specification documentation 
+• OWASP Secure Development guidelines 
+• NIST Cybersecurity Framework 
+• ISO/IEC 27001 Information Security Management standards 
+• Peer-reviewed research on phishing detection with AI 
+The system includes adherence to known standards of cybersecurity for: 
+• Secure API endpoints 
+• Data encryption 
+• Privacy compliance 
+• Responsible AI use 
+• Threat intelligence sources for model training and evaluation 
+The document notes of the sources of cybersecurity research and threat intelligence used to 
+acquire the modules for training and evaluation. 
+ 
+
+7  
+  
+ 
+ 
+2. Overall Description 
+2.1 Problem Statement 
+Phishing emerged as most common and one of the costliest categories of cybercrime. 
+Attackers leverage advancements in technologies like AI for sending domain-faking emails, 
+credential gathering sites and emails, etc. 
+ 
+Most of the existing solutions are based on static rule-based detection, blacklisting, 
+cookie tracking, pattern matching etc. These are suboptimal solutions because: 
+• Do not cover zero-day attacks, blacklisted sites quickly get re-published as spammers, 
+hackers every now and then. 
+• Are not able to integrate threat intelligence quickly enough. 
+• Are not able to prevent AI generated emails or sense context-aware phishing emails. 
+• Provide limited visibility across access in a browser. 
+ 
+Blind to subtle clues in a phishing attack such as: 
+look alike domain names (paypa1.com), messages urging to take urgent action, fake 
+login screens, URL shorteners, encapsulated URL frames etc. 
+ 
+More so organizations are faced with: 
+Tons of incoming email, inability to handle response, no visibility within threat landscape 
+and threats of credential theft, financial loses and information leaks. 
+ 
+The Real-Time AI/ML-Based Phishing Detection and Prevention System solves these 
+problems with continuous threat monitoring and input, real-time threat scoring, behavioural 
+and pattern-based threat detection, browser-based threat detection, centralized administration. 
+ 
+2.2 Product Perspective 
+The system is a modular AI-powered infrastructure that is designed as a browser plugin-
+based, cloud-supported phishing shield. The system uses the following integrated modules 
+which collectively support the system functionality of: 
+• Data collection 
+• Threat detection 
+• Machine learning inference 
+• Real time alarms 
+• Admin reporting 
+ 
+ 
+ 
+
+8  
+  
+ 
+ 
+2.2.1 Core architecture 
+• Browser plugin 
+• Intercepts URLs and web page contents 
+• Relays analysis requests to backend 
+• Real-time phishing warning and threat insight presentation 
+• Attempts blocking to confirmed phishing sites 
+• AI/ML analysis engine (server) 
+• URL feature extraction 
+• Similarity checks among entities 
+• Classification of email content (NLP) 
+• Recognition of behaviour patterns 
+• Concretization of threats and categorization 
+• Machine learning based model training 
+• Administrative dashboard 
+• Notifications about phishing exploits 
+• Phishing incident follow-ups 
+• Threat evolution monitoring 
+• User and policy control 
+ 
+Communication and integration: 
+• HTTPS based API communication 
+• RESTful backend infrastructure 
+• WebSocket (optional) for instant event notification 
+• JSON for data sharing 
+• Optional integration with third party threat data 
+ 
+The system doesn’t depend on any of the above and can work independently with the rest 
+of the enterprise infrastructure like: 
+• Organization email gateways 
+• SIEM system 
+• Existing OSS authentication system 
+ 
+The system architecture provides the required assurance for possible scalability, flexibility 
+and enterprise readiness. 
+ 
+ 
+ 
+ 
+
+9  
+  
+ 
+ 
+2.3 Product Functionality 
+The system delivers AI powered phishing detection for end-users and security teams. 
+ 
+2.3.1 URL inspection and analysis: 
+Automatic deep scanning of all visited links Phishing warning on suspicious URLs ( 
+unnatural characters, misspelled brand names, fake URL re-direction, obfuscated URL within 
+coded pages) Comparing visited links with phishing URLs showing and blocking Watering hole 
+detection based on keyword matching and advanced crawling techniques Real-time threat 
+recognition and visualization through a consistent hierarchy of domain classifications SSL 
+certificate verification detection Gray-listing, domain age and known profile manual score 
+development 
+ 
+2.3.2 Email inspection and analysis: 
+Connection of input email messages with URLs in the message body Ped, embedded, 
+hidden links to either recognize phishing sites, identify malware payload, or put forward the 
+true message URL classifier of email content based on Natural Language Processing (NLP) 
+techniques of: Requests for sensitive information Impersonation Or combinations of both 
+Expressions of urgency (Why they want x now) Requests for credentials Classifier of email as: 
+safe, suspicious, and phishing Webpage content inspection 
+ 
+2.3.3 Detection of credential hacking forms 
+Fake login pages Monitor displays of input fields SSL verification Inspection of web 
+sources for suspicious elements (SCADA manipulation, third party code execution, obfuscated 
+JavaScript, iframe injections, additional plugins, etc.) Visual input fields inspection Browser-
+based zero-day detection with behaviour analysis Web forms Blacklist behaviour & prior 
+learning for rapid website approval 
+ 
+2.3.4 Persistent Browser Protection Detection of phishing 
+Content, behaviour & URL instantly provides the user with a restaurant suggestion, and 
+if user encounters a phishing threat the system instantly blocks the user from visiting the 
+malicious website, with a warning message on the pop-up and the system will display a risk 
+indicator on the browser. 
+ 
+The system will ask the user if he understands the risk, to which the user will reply no, 
+and the system will no longer visit such website. At the same time individual browser settings 
+will be made and associated web browser behaviour will be modified and run automatically 
+whitelisting the frequency of visiting such websites. 
+
+10  
+  
+ 
+ 
+ 
+2.3.5 Administrator and analyst dashboard and statistics 
+Real-time monitoring and visualization, allows admin and analyst to view the total and 
+category of phishing threat occurring at the moment, the rate of occurred threats during any 
+period, also feature a detailed statement of migration of threats over the last a number of days. 
+ 
+Edit and customizable reporting will allow the admin and analyst visualize the stats 
+easily, by own preferences. 
+ 
+The overall anti phishing security platform will deliver personalized, adaptive AI based cyber 
+security analytics through an effortless user experience and easy organization-wide visibility. 
+ 
+2.4 User Classes and Characteristics 
+The system is targeted at three main categories of end Users: 
+ 
+2.4.1 End Users (Target Users) 
+• Employees within an organization 
+• People who use the Internet every day 
+• Customers of online banking and e-commerce 
+Applicable to users with: 
+• Different cybersecurity experience 
+• Using various web servers every day 
+• Unaware to a level of phishing 
+Get the most of their needs: 
+• An immediate warning before takes any interaction to malicious content 
+• Obvious indicator of risk 
+• Absolute minimum of manual setup 
+The exact interface design should be: 
+• Too easy 
+• Too non-technical 
+• Too noise 
+• Can be accessible 
+ 
+ 
+ 
+ 
+ 
+
+11  
+  
+ 
+ 
+2.4.2 IT Security Group/Administrators 
+Security team who needs to monitoring and handle phishing risks. 
+People who: 
+• Can have medium/advanced technical knowledge 
+• Manage for many other end Users 
+• Require centralized control 
+• Are much responsible 
+Following needs required: 
+• Real-time view of the system 
+• Thief analysis 
+• Incident handling tools 
+• System policy setup 
+• Dashboard must show a huge amount of information but simple to use. 
+ 
+2.4.3 System administrators/ML/Torrent engineers 
+People who: 
+• Manage to train the model 
+• Manage to configure the system 
+• Manage to optimize the speed 
+• Manage to distributed deployments 
+• Require to access logs 
+• Measures Model performance  
+• Configuration controls 
+ 
+2.5 Operating Environment 
+The implementation is trained in a variety of technical environments, including: 
+ 
+2.5.1 Client platforms: 
+• Web browsers (Chrome/Edge/Firefox) 
+• Desktop and mobile computers 
+• Browser framework 
+• Administrative two-panel. 
+ 
+ 
+ 
+ 
+
+12  
+  
+ 
+ 
+2.5.2 Network conditions: 
+• Reliable enterprise intranet / internet 
+• Home internet measures 
+• Fluctuated throughput. 
+The environment needs: 
+• API responses low latency 
+• Light data payloads 
+• Robust coping to transient disconnection. 
+ 
+2.5.3 Infrastructure: 
+• Managed backend servers. 
+• Containerized scalable services (optional future deployment model) 
+• Protected database deployment 
+• ML model hosting environment. 
+The environment demands: 
+• High availability 
+• Secured communication 
+• Minimal response time. 
+ 
+2.6 Design and Implementation Constraints 
+The design constraints to be considered are: 
+• Real time performance (low latency inference) 
+• High detection quality (low false positive ratio) 
+• Data encryption (Data access control) 
+• Privacy concerns/Data Security 
+• Cross-browser compatibility 
+• Limited processing power on the client side 
+• Cost of cloud hosting 
+• Ethical AI production 
+• Defence against model walling and other framework threats 
+• Security and privacy are more defined constraints: 
+• Encrypted communications (HTTPS) 
+• Secure sign-on/authentication 
+• Limited admin access to the application 
+• Limited storage of sensitive user data 
+
+13  
+  
+ 
+ 
+2.7 Assumptions and Dependencies 
+2.7.1 Assumptions 
+• Users enable the browsers extension 
+• Organizations define correct API destination points 
+• Internet access during browsing 
+• Trained datasets contain various phishing examples 
+• Users comply with security suggestions 
+ 
+2.7.2 Dependencies 
+• Google Cloud hosting service of the backend system 
+• Machine learning tools for training and inference 
+• Browser extension API 
+• Valid SSL certificate checking processes 
+• Sources of threat intelligence data (for future implementation) 
+ 
+Meeting these assumptions will guarantee efficient detection of phishing tasks in the system in 
+real-time. 
+3. Specific Requirements 
+3.1 External Interface Requirements 
+3.1.1 User Interface Requirements 
+The system shall provide intuitive, secure, and responsive interfaces for end users and 
+administrators, ensuring usability across diverse devices and varying levels of cybersecurity 
+awareness. 
+ 
+End-User Browser Extension Interface 
+A lightweight browser extension accessible via modern web browsers without requiring 
+advanced technical knowledge. 
+ 
+Key Features: 
+Visual security indicator displayed in browser toolbar: 
+• Green → Safe 
+• Yellow → Suspicious 
+• Red → Phishing Detected 
+Real-time popup alert when: 
+• Visiting suspicious URLs 
+
+14  
+  
+ 
+ 
+• Entering credentials on risky pages 
+• Clicking suspicious links 
+Threat details panel displaying: 
+• Threat score (percentage or risk level) 
+• Detection reasons (e.g., domain similarity, suspicious language) 
+• Recommended action (Proceed, Go Back, Report) 
+Manual URL scanning feature: 
+• User can paste a URL for analysis 
+Minimal disruption: 
+• Alerts must not excessively interrupt safe browsing 
+ 
+ 
+ 
+Administrative Dashboard Interface 
+A secure, web-based dashboard for centralized threat monitoring. 
+Core Features: 
+• Real-time threat activity map/list 
+• Total phishing attempts detected 
+• Threat categories (email, URL, webpage) 
+• Risk score distribution 
+• Historical trend graphs 
+• User and policy management panels 
+• Search and filtering of incidents 
+Standard UI Components: 
+• Secure login page 
+• Data tables with sorting/filtering 
+• Interactive charts 
+• Configuration forms 
+• Role-based access control 
+ 
+General UI Standards 
+• Responsive design (desktop-first for dashboard) 
+• Clear plain-language warnings (non-technical phrasing) 
+• High contrast design for visibility 
+• Touch-friendly elements where applicable 
+• Keyboard accessibility support 
+• Informative error messages with corrective guidance 
+ 
+
+15  
+  
+ 
+ 
+3.1.2 Hardware Interface Requirements 
+The system interfaces with standard consumer hardware and does not require 
+proprietary equipment. 
+ 
+End-User Devices 
+• Desktop or laptop computers 
+• Standard CPUs capable of running modern browsers 
+• Internet connectivity 
+The browser extension shall: 
+• Operate within browser resource limits 
+• Use minimal CPU and memory 
+• Avoid significant performance degradation 
+ 
+Server Infrastructure 
+The backend system shall operate on: 
+• Cloud-hosted servers 
+• Scalable virtual machines or containers 
+• Secure database systems 
+Minimum requirements include: 
+• Sufficient CPU for ML inference 
+• Adequate RAM for model loading 
+• Encrypted storage 
+ 
+No specialized hardware acceleration (e.g., GPU) is mandatory in the initial deployment phase 
+but may be used to enhance ML performance. 
+ 
+3.1.3 Software Interface Requirements 
+System components communicate through secure, standardized software interfaces. 
+ 
+API Standards 
+• RESTful architecture 
+• HTTPS encrypted communication 
+• JSON request/response format 
+• Token-based authentication (JWT or equivalent) 
+• API versioning support 
+Core API Endpoints 
+URL Analysis (Browser → Server) 
+POST URL for classification 
+Includes: 
+
+16  
+  
+ 
+ 
+• URL string 
+• Referrer (optional) 
+• Metadata (timestamp, browser version) 
+Response: 
+• Threat score 
+• Classification (Safe / Suspicious / Phishing) 
+• Detection reasons 
+• Recommended action 
+Email Analysis (Optional Integration) 
+POST email content 
+Includes: 
+• Subject 
+• Body text 
+• Sender metadata 
+Response: 
+• Phishing probability score 
+• Classification label 
+Threat Retrieval (Admin → Server) 
+GET detected incidents 
+Filter options: 
+• Date range 
+• Threat type 
+• Risk score 
+• User 
+Administrative Configuration 
+• Authenticated access only 
+• Model threshold configuration 
+• Alert sensitivity adjustment 
+• Data retention policies 
+• User role management 
+Real-Time Communication 
+• Optional WebSocket streaming for dashboard updates 
+• Fallback to periodic HTTP polling 
+ 
+3.2 Functional Requirements 
+Each requirement is uniquely labelled. 
+1. FR-1: URL Interception 
+The system shall intercept URLs visited by users through the browser extension 
+before or during page loading for security analysis. 
+
+17  
+  
+ 
+ 
+2. FR-2: URL Feature Extraction 
+The system shall extract structural and lexical features from URLs, including 
+domain name, subdomain patterns, path length, and suspicious character usage. 
+3. FR-3: Domain Similarity Detection 
+The system shall analyse domain similarity against known legitimate domains 
+using string comparison techniques to detect look-alike phishing domains. 
+4. FR-4: SSL and Certificate Validation 
+The system shall verify the presence and validity of SSL certificates and flag 
+invalid or suspicious certificates. 
+5. FR-5: Webpage Content Analysis 
+The system shall analyse webpage content for phishing indicators including: 
+• Credential input fields 
+• Suspicious form actions 
+• Urgency-based language 
+• Brand impersonation patterns 
+6. FR-6: Email Content Classification 
+The system shall classify email content using NLP techniques to identify phishing 
+characteristics. 
+7. FR-7: Threat Scoring  
+The system shall assign a numerical threat score to each analysed URL or email 
+and classify it as: 
+• Safe 
+• Suspicious 
+• Phishing 
+8. FR-8: Real-Time User Alerting 
+The system shall display real-time warnings to users when a phishing threat is 
+detected. 
+9. FR-9: Access Blocking 
+The system shall block access to URLs classified as confirmed phishing unless 
+explicitly overridden by the user (configurable). 
+10. FR-10: Zero-Day Detection 
+The system shall detect previously unseen phishing URLs based on learned 
+behavioural patterns without reliance solely on static blacklists. 
+11. FR-11: Incident Logging 
+The system shall log all detected phishing incidents with timestamp, threat score, 
+classification, and relevant metadata. 
+12. FR-12: Administrative Monitoring 
+The system shall provide administrators with real-time visibility of phishing 
+incidents across the organization. 
+13. FR-13: Historical Threat Data Retention 
+
+18  
+  
+ 
+ 
+The system shall retain phishing detection logs for a minimum configurable 
+retention period (e.g., 90 days). 
+14. FR-14: Model Retraining Support 
+The system shall support periodic retraining of machine learning models using 
+updated datasets. 
+15. FR-15: Configurable Detection Threshold 
+The system shall allow administrators to configure threat score thresholds that 
+determine classification levels. 
+16. FR-16: Role-Based Access Control 
+The system shall restrict administrative functions based on user roles and 
+permissions. 
+17. FR-17: Secure Authentication 
+The system shall require secure authentication for administrative access using 
+encrypted credentials. 
+ 
+18. FR-18: Performance Logging 
+The system shall track detection accuracy metrics including false positives and 
+false negatives. 
+19. FR-19: Reporting and Export 
+The system shall allow administrators to generate and export phishing incident 
+reports. 
+20. FR-20: System Health Monitoring 
+The system shall monitor server uptime, API performance, and model inference 
+latency. 
+ 
+3.3 Use Case Model 
+3.3.1 Use Case 1: User Visits a Suspicious Website 
+Actor: End User 
+Preconditions: Browser extension installed and active. 
+Main Flow: 
+• The user enters a URL in the browser. 
+• The browser extension intercepts the URL. 
+• The system sends the URL to the backend for analysis. 
+• The ML engine evaluates the URL and webpage content. 
+• The system assigns a threat score. 
+• If classified as phishing, a warning popup is displayed. 
+• The user chooses to proceed or exit. 
+Postconditions: The user is warned before interacting with a phishing site. 
+
+19  
+  
+ 
+ 
+ 
+3.3.2 Use Case 2: Administrator Monitors Threat Activity 
+Actor: Administrator 
+Preconditions: Administrator is authenticated. 
+Main Flow: 
+• The administrator logs into the dashboard. 
+• The system displays real-time phishing incidents. 
+• The administrator filters incidents by date or risk level. 
+• The administrator reviews detailed threat logs. 
+• The administrator exports a report if needed. 
+ 
+Postconditions: Administrator gains insight into threat landscape. 
+ 
+3.3.3 Use Case 3: ML Model Update 
+Actor: ML Engineer / System Admin 
+Preconditions: New labelled dataset available. 
+Main Flow: 
+• Engineer uploads updated training dataset. 
+• The system retrains the ML model. 
+• Model evaluation metrics are generated. 
+• If accuracy thresholds are met, model is deployed. 
+• The system begins using updated model for inference. 
+Postconditions: Improved detection performance. 
+4. Other Non-Functional Requirements 
+4.1 Performance Requirements 
+Performance requirements define how efficiently, accurately, and responsively the 
+phishing detection system must operate under varying load and network conditions. 
+The system shall perform URL analysis and return a classification result within two 
+seconds under normal network conditions. Under peak load, API response times shall remain 
+below three seconds. 
+The browser extension shall display initial risk indicators within one second of receiving 
+the backend response, ensuring minimal browsing disruption. 
+The administrative dashboard shall load its primary interface within five seconds on 
+standard broadband connections. Subsequent actions such as filtering incidents, loading 
+reports, or viewing detailed logs shall respond within two seconds. 
+The backend shall support: 
+
+20  
+  
+ 
+ 
+• At least 10,000 concurrent users 
+• A minimum of 1,000 URL analysis requests per minute 
+• Horizontal scalability to accommodate growth without degradation 
+Machine learning inference shall maintain: 
+• Average processing time per request below 1.5 seconds 
+• Memory utilization within defined server resource limits 
+• CPU usage optimized to prevent bottlenecks during peak activity 
+Detection performance shall meet the following minimum targets: 
+• Overall classification accuracy ≥ 90% 
+• Precision ≥ 90% 
+• Recall ≥ 85% 
+• False positive rate ≤ 5% 
+The system shall continuously monitor model performance metrics and log deviations 
+from target thresholds. 
+Bandwidth usage for browser-to-server communication shall be minimized: 
+• Each analysis request payload shall not exceed 100 KB 
+• Response payloads shall remain optimized and compressed where possible 
+• The system shall degrade gracefully under heavy load, prioritizing real-time classification 
+over historical data queries. 
+4.2 Safety and Security Requirements 
+Safety and security requirements ensure protection of user data, system integrity, and 
+resilience against cyber threats. 
+All communications between browser extension, backend server, and administrative 
+dashboard shall use HTTPS with TLS 1.2 or higher. Unencrypted requests shall be rejected. 
+Administrative access shall require: 
+• Strong password enforcement 
+• Multi-factor authentication (MFA) support (future-ready) 
+• Account lockout after a configurable number of failed attempts 
+• Automatic session expiration after inactivity 
+The system shall implement: 
+• Input validation and sanitization for all API inputs 
+• Protection against SQL injection, XSS, CSRF, and command injection 
+• API rate limiting to prevent abuse 
+• Protection against denial-of-service attempts 
+Administrative actions shall be logged in secure audit logs including: 
+• User identifier 
+• Timestamp 
+• Action performed 
+• IP address 
+Audit logs shall be retained for a minimum of one year. 
+
+21  
+  
+ 
+ 
+The system shall protect user privacy by: 
+• Minimizing storage of personally identifiable information 
+• Avoiding storage of raw passwords or sensitive form data 
+• Not storing full webpage contents beyond analysis necessity 
+• Encrypting stored sensitive metadata 
+The system shall not analyse or store user data beyond phishing detection purposes without 
+explicit authorization. 
+To prevent model exploitation, the system shall: 
+• Limit exposure of internal ML model architecture 
+• Prevent adversarial query patterns 
+• Monitor abnormal repeated classification requests 
+4.3 Software Quality Attributes 
+Software quality attributes define long-term reliability, maintainability, scalability, and usability. 
+4.3.1 Reliability 
+The system shall target 99% monthly uptime for backend services. 
+The system shall: 
+• Handle unexpected failures gracefully 
+• Isolate faults to prevent cascading failures 
+• Automatically restart failed services where possible 
+ 
+4.3.2 Usability 
+The browser extension shall: 
+• Provide clear, plain-language warnings 
+• Avoid technical jargon in user alerts 
+• Allow users to understand risk level within five seconds 
+The administrative dashboard shall: 
+• Present organized, filterable threat data 
+• Allow administrators to complete common tasks within two minutes 
+• Include contextual help or tooltips where necessary 
+ 
+4.3.3 Maintainability 
+The codebase shall: 
+• Follow modular architecture principles 
+• Separate frontend, backend, and ML components 
+• Include inline documentation and API documentation 
+
+22  
+  
+ 
+ 
+• Use version control systems (e.g., Git) 
+ML models shall: 
+• Be versioned 
+• Maintain changelogs for updates 
+• Store performance evaluation metrics 
+ 
+4.3.4 Portability 
+The backend shall run on standard Linux-based environments without proprietary 
+dependencies. 
+The browser extension shall support: 
+• Google Chrome 
+• Microsoft Edge 
+• Mozilla Firefox 
+The system shall remain compatible with modern browser versions. 
+ 
+4.3.5 Scalability 
+The system shall support: 
+• Horizontal scaling of backend services 
+• Load balancing 
+• Database indexing and caching mechanisms 
+The architecture shall allow scaling without requiring redesign. 
+ 
+4.3.6 Availability 
+Critical backend components shall implement redundancy where feasible. 
+Maintenance operations shall: 
+• Minimize downtime 
+• Notify administrators of service interruptions 
+The system shall provide service status visibility when outages occur. 
+ 
+4.3.7 Interoperability 
+APIs shall: 
+• Follow RESTful standards 
+• Use JSON data format 
+• Allow integration with external systems such as SIEM tools 
+ 
+
+23  
+  
+ 
+ 
+4.3.8 Accessibility 
+The user interface shall: 
+• Support high-contrast modes 
+• Provide readable font sizes 
+• Support keyboard navigation 
+• Follow inclusive design practices 
+Warnings shall use both colour and text indicators to ensure accessibility for colour blind users. 
